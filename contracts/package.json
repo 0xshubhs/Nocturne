@@ -9,12 +9,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run typecheck && npm run test",
+    "issuer:mint": "tsx scripts/mint-personas.ts",
+    "issuer:new-key": "tsx scripts/mint-personas.ts --new-key"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.19.0"
   },
   "devDependencies": {
+    "tsx": "^4.23.13",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }
