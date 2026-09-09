@@ -10,9 +10,28 @@ Working checklist. Not committed. Move items to done as they land.
   (`test/score.parity.test.ts`, 6 cases). 20/20 passing, `tsc --noEmit` clean.
 - **§5 Scoring Engine — DONE.** `score.ts` reference + fixture parity vs the
   compiled `scoreOf` circuit for every persona (alice / bob / zero / expired).
-- §2 Attestation issuer — model + in-circuit verification done; issuer service,
-  persona CLI, deploy wiring still open.
-- §3 wallet, §4 cross-chain, §6 UI, §7 demo — not started.
+- **§2 Attestation Issuer — DONE.** `contracts/src/issuer.ts` —
+  `AttestationIssuer` (keypair helpers, leaf construction, demo-persona bands),
+  transport-agnostic `submitLeaf`. `contracts/scripts/mint-personas.ts` CLI
+  (`npm run issuer:mint`) mints Alice (strong) + Bob (thin file) and emits the
+  private-state bundle. `test/issuer.test.ts` (8 cases) proves issue → borrow
+  end to end and rejects an unsigned attestation. In-circuit validation was
+  already in place from §1.
+- **§3 Wallet Integration — DONE.** `src/lib/midnight/`: DApp Connector wrapper,
+  React `WalletProvider`/`useWallet`, AES-GCM encrypted private-state store keyed
+  to a wallet signature, proof-server health check, message signing +
+  external-wallet ownership challenge, DUST fee state + pre-flight check, and the
+  `prove → pay fees → submit → confirm` pipeline (`submit.ts`) wired to the
+  phase machine. `LendingClient` composes it all. 20 app unit tests, `tsc`
+  clean, `next build` green. The one remaining seam is transaction assembly
+  (`TxAssembler`) — `midnight-js-contracts` is version-blocked on our Compact
+  0.34 / runtime 0.19 toolchain; the runtime already produces the
+  `callProofDataTrace` it needs.
+- §6 UI — landing page + wallet-connect panel shipped; borrower dashboard,
+  borrow form, pool view, explorer panel not started.
+- §4 cross-chain, §7 demo — not started.
+
+Score so far: **4 milestones done (§1, §2, §3, §5), 1 in progress (§6 shell).**
 
 ## Now
 - [x] Scaffold `contracts/` with a Compact starter contract
@@ -38,35 +57,51 @@ Working checklist. Not committed. Move items to done as they land.
 - [x] Model chosen: issuer maintains `attestationRoot`, calls `issueAttestation(leaf)`
 - [x] In-circuit attestation validation (leaf ∈ root + leaf binds (field,value,expiry,subject))
 - [x] Client-side `pathFor` in witnesses.ts — recompute leaf, query tree for path
-- [ ] Issuer keypair management + deploy script (constructor already takes `issuerSecret`)
-- [ ] Service/script that builds leaves and submits `issueAttestation`
-- [ ] CLI to mint attestations for demo personas (Alice strong, Bob thin)
+- [x] `AttestationIssuer` — keypair helpers, leaf construction, `issue`/`issueSet`/`issuePersona`, transport-agnostic `submitLeaf` — `contracts/src/issuer.ts`
+- [x] Demo-persona bands (Alice strong / Bob thin) tuned to the tier table
+- [x] CLI to mint personas — `npm run issuer:mint` (`scripts/mint-personas.ts`), emits the private-state bundle
+- [x] `test/issuer.test.ts` (8 cases) — issue → borrow end to end, unsigned attestation rejected
+- [ ] Deploy script proper — folded into §3 `TxAssembler` (needs tx assembly)
 
 ## Scoring engine
 - [x] TS reference `score.ts` mirroring the circuit arithmetic
 - [x] Parity tests (TS output == circuit output) per persona
 
 ## Wallet + infra
-- [ ] Wallet connector integration (connect / address / disconnect)
-- [ ] Local encrypted private-state store keyed to wallet
-- [ ] Local proof server config + health check
-- [ ] Full ZK key generation is done locally; wire proof server for real proofs
-- [ ] DUST fee handling in the submit flow
+- [x] Wallet connector integration (connect / address / disconnect) — `connector.ts`, `use-wallet.tsx`
+- [x] Local encrypted private-state store keyed to wallet — `private-state.ts` (AES-GCM, key from a wallet signature) + `lending.ts` typed wrapper; unit-tested
+- [x] Local proof server config + health check — `config.ts` + `checkProofServerHealth` in `proof-server.ts`
+- [x] Message signing + external-wallet ownership challenge — `signing.ts`
+- [x] DUST fee state + pre-flight `assertCanPayFees` — `fees.ts`
+- [x] Submit pipeline — `submit.ts`: fee check → assemble → prove (`getProvingProvider`) → `balanceUnsealedTransaction({payFees:true})` → `submitTransaction` → poll indexer, driven by the phase machine
+- [x] `LendingClient` — private state + assembler + submit, one method per circuit — `lending-client.ts`
+- [x] SDK-free provider foundation — `providers.ts`: `FetchKeyMaterialProvider`, `queryContractState`
+- [x] Unit tests for fees / signing / submit pipeline / client orchestration — `submit.test.ts` (9 cases, fake wallet + fake assembler)
+- [ ] `TxAssembler` implementation — build the unproven contract-call tx. `midnight-js-contracts` 4.1.1 pins `compact-runtime` 0.16 vs our 0.19; either it catches up, or hand-roll via `ledger-v8` from the runtime's `callProofDataTrace`.
+- [ ] `npm run sync:zk` to copy compiled keys into `public/zk/lending/` before a real proof
+
+## App / infra
+- [x] Next 16 app builds (`next build`), `tsc --noEmit` clean, vitest wired (`npm test`)
+- [x] `WalletProvider` in `layout.tsx`; `@/lib/midnight` barrel export
+- [x] `src/lib/midnight/` unit tests (codec, encrypted store, config, phase machine, fees, signing, submit, client) — 20 cases
+- [x] tsconfig `target` bumped to ES2020 (bigint), `contracts/` excluded from app typecheck
+- [x] `tsx` + `contracts` scripts (`issuer:mint`, `issuer:new-key`)
+- [ ] eslint pass over `src/lib/midnight/` (not yet run)
 
 ## Cross-chain import
-- [ ] External-wallet ownership proof (signed message)
-- [ ] Commit hash of derived history into private state
+- [x] External-wallet ownership proof (signed message) — `signing.ts` `proveExternalWalletOwnership` / `ownershipChallenge`
+- [ ] Verify the signature + commit the derived-history hash into private state
 - [ ] Mock history JSON ingestion for demo
 
 ## UI
-- [ ] Landing + connect CTA
+- [x] Landing + connect CTA — `page.tsx` + `WalletPanel` (address, DUST, proof-server status)
+- [x] Proof progress primitives — `ProofProgress` / `runWithProgress` (render component still TODO)
 - [ ] Borrower dashboard: attestation inbox
 - [ ] Borrower dashboard: link external wallet
 - [ ] Score + tier band display
 - [ ] Borrow form → proof generation → submit
 - [ ] Active loan card (balance, APR, repay, risk meter)
 - [ ] Pool view: liquidity, tier rules, outstanding count, deposit/withdraw
-- [ ] Proof progress + error states
 - [ ] Explorer panel (chain-sees vs you-know)
 
 ## Demo
