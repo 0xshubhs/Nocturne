@@ -80,23 +80,23 @@ witness crossChainScore(): Uint<64>;
 // Key derivation — every hash carries a unique domain separator
 // ---------------------------------------------------------------------------
 
-pure circuit deriveIssuerPk(sk: Bytes<32>): Bytes<32> {
+export pure circuit deriveIssuerPk(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:issuer:v1"), sk]);
 }
 
 // Pseudonymous borrower id used as the loan key + double-borrow guard.
-pure circuit makeNullifier(sk: Bytes<32>): Bytes<32> {
+export pure circuit makeNullifier(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:nullifier:v1"), sk]);
 }
 
 // Distinct domain: binds an attestation to a subject without linking to the
 // nullifier.
-pure circuit makeSubjectId(sk: Bytes<32>): Bytes<32> {
+export pure circuit makeSubjectId(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:subject:v1"), sk]);
 }
 
 // Attestation leaf the issuer commits into `attestationRoot`.
-pure circuit attestationLeaf(
+export pure circuit attestationLeaf(
   fieldTag: Bytes<32>,
   value: Uint<64>,
   expiry: Uint<64>,
@@ -108,6 +108,18 @@ pure circuit attestationLeaf(
     persistentHash<Uint<64>>(value),
     persistentHash<Uint<64>>(expiry)
   ]);
+}
+
+// Credit score from the three attestation values plus the cross-chain
+// contribution. The single source of truth — `borrow` and score.ts both mirror
+// these weights.
+export pure circuit scoreOf(
+  bankValue: Uint<64>,
+  salaryValue: Uint<64>,
+  repayValue: Uint<64>,
+  crossChain: Uint<64>
+): Uint<64> {
+  return (bankValue * 2 + salaryValue * 3 + repayValue * 4 + crossChain) as Uint<64>;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,8 +154,9 @@ export circuit depositLiquidity(amount: Uint<64>): [] {
 }
 
 export circuit withdrawLiquidity(amount: Uint<64>): [] {
-  assert(disclose(amount) <= poolLiquidity, "insufficient pool liquidity");
-  poolLiquidity = (poolLiquidity - amount) as Uint<64>;
+  const amt = disclose(amount);
+  assert(amt <= poolLiquidity, "insufficient pool liquidity");
+  poolLiquidity = (poolLiquidity - amt) as Uint<64>;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,15 +172,14 @@ circuit verifiedValue(
   const value = att[0];
   const expiry = att[1];
   const path = att[2];
+  // Disclose the reconstructed root: on success it just equals the already-public
+  // tree root. The path's siblings and the leaf position stay private.
   assert(
-    attestationRoot.checkRoot(merkleTreePathRoot<10, Bytes<32>>(path)),
+    attestationRoot.checkRoot(disclose(merkleTreePathRoot<10, Bytes<32>>(path))),
     "attestation not issued by the issuer"
   );
   // Bind the proven leaf to the claimed (value, expiry, subject) so the prover
-  // can't swap in a different real leaf. If `path.leaf` is not the accessor in
-  // the installed runtime, the equivalent forms are:
-  //   merkleTreePathRoot<10, Bytes<32>>(leaf, path)  // leaf passed separately
-  // or a witness `findPath(expectedLeaf)` that takes the leaf as its argument.
+  // can't swap in a different real leaf. Assert only — no disclosure.
   assert(
     path.leaf == attestationLeaf(fieldTag, value, expiry, subject),
     "attestation path does not match its contents"
@@ -184,9 +196,15 @@ export circuit borrow(
 ): [] {
   const secret = callerSecret();
 
+  // Public by design: tier, amount, collateral, due time, and the nullifier.
+  const t1  = disclose(useTier1);
+  const amt = disclose(amount);
+  const col = disclose(collateral);
+  const due = disclose(dueTime);
+
   const nullifier = disclose(makeNullifier(secret));
   assert(!activeNullifiers.member(nullifier), "identity already has an active loan");
-  assert(blockTimeLt(disclose(dueTime)), "due time must be in the future");
+  assert(blockTimeLt(due), "due time must be in the future");
 
   // --- score, computed entirely over private data ---
   const subject = makeSubjectId(secret);
@@ -194,29 +212,28 @@ export circuit borrow(
   const salaryV = verifiedValue(pad(32, "defi1:att:salary:v1"), subject, salaryAttestation());
   const repayV  = verifiedValue(pad(32, "defi1:att:repay:v1"),  subject, repayAttestation());
 
-  // weights: bank x2, salary x3, repayment history x4  (mirror score.ts)
-  const score = (bankV * 2 + salaryV * 3 + repayV * 4 + crossChainScore()) as Uint<64>;
+  const score = scoreOf(bankV, salaryV, repayV, crossChainScore());
 
-  const rule = useTier1 ? tier1 : tier0;
+  const rule = t1 ? tier1 : tier0;
   assert(disclose(score >= rule.minScore), "score below required tier");
 
   // amount / collateral <= maxLtvBps / 10000
   assert(
-    disclose((amount * 10000) as Uint<64> <= (collateral * rule.maxLtvBps) as Uint<64>),
+    (amt * 10000) as Uint<64> <= (col * rule.maxLtvBps) as Uint<64>,
     "exceeds max LTV for tier"
   );
-  assert(disclose(amount) <= poolLiquidity, "insufficient pool liquidity");
+  assert(amt <= poolLiquidity, "insufficient pool liquidity");
 
-  const tierId = (disclose(useTier1) ? 1 : 0) as Uint<8>;
+  const tierId = (t1 ? 1 : 0) as Uint<8>;
   loans.insert(nullifier, LoanRecord {
     tier: tierId,
-    principal: disclose(amount),
-    collateral: disclose(collateral),
-    dueTime: disclose(dueTime),
+    principal: amt,
+    collateral: col,
+    dueTime: due,
     active: true
   });
   activeNullifiers.insert(nullifier);
-  poolLiquidity = (poolLiquidity - amount) as Uint<64>;
+  poolLiquidity = (poolLiquidity - amt) as Uint<64>;
   loanCount.increment(1);
 }
 
@@ -241,13 +258,14 @@ export circuit repay(amount: Uint<64>): [] {
 // ---------------------------------------------------------------------------
 
 export circuit liquidate(nullifier: Bytes<32>): [] {
-  assert(activeNullifiers.member(nullifier), "no active loan");
-  const loan = loans.lookup(nullifier);
+  const n = disclose(nullifier);
+  assert(activeNullifiers.member(n), "no active loan");
+  const loan = loans.lookup(n);
   assert(blockTimeGte(loan.dueTime), "loan not yet in default");
 
   // seize collateral into the pool, close the loan, publish the defaulter
   poolLiquidity = (poolLiquidity + loan.collateral) as Uint<64>;
-  loans.remove(nullifier);
-  activeNullifiers.remove(nullifier);
-  defaulters.insert(nullifier);
+  loans.remove(n);
+  activeNullifiers.remove(n);
+  defaulters.insert(n);
 }

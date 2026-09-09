@@ -7,23 +7,29 @@ src/
   lending.compact   core contract
   witnesses.ts      private state shape + witness implementations
   score.ts          TS reference for the score arithmetic (parity target)
-test/               (todo) contract + parity tests
+test/
+  simulator.ts            in-memory contract runner (no proof server)
+  lending.test.ts         behavioural suite (14 cases)
+  score.parity.test.ts    score.ts <-> scoreOf circuit parity (6 cases)
 ```
 
-## Build
+## Build + test
 
-Needs the Midnight Compact toolchain — **not installed on this machine yet**, so
-nothing here is compiled or tested.
+Compiles under the Midnight Compact toolchain (`compact 0.5.2`, compiler
+0.34.0). `src/managed/` is generated and git-ignored.
 
 ```bash
+# one-time: install the compiler
 curl --proto '=https' --tlsv1.2 -sSf \
   https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
 source $HOME/.local/bin/env
 
-compact compile src/lending.compact src/managed/lending
+npm install
+npm run compact        # compile src/lending.compact -> src/managed/lending
+npm run check          # tsc --noEmit && vitest run  (20 tests)
 ```
 
-Target: Compact **>= 0.23**, compact-runtime 0.16.x, Node >= 22, proof server
+Target: Compact **>= 0.23**, compact-runtime 0.19.0, Node >= 22, proof server
 `midnightntwrk/proof-server:8.0.3`.
 
 ## Contract shape
@@ -54,14 +60,18 @@ Target: Compact **>= 0.23**, compact-runtime 0.16.x, Node >= 22, proof server
 | C2 domain-separated `makeNullifier` / `makeSubjectId` / `deriveIssuerPk` | ✅ |
 | C3 loans keyed by nullifier (pseudonymous); amounts intentionally public per pitch | ✅ |
 
-## Still open (need the compiler)
+## Confirmed against the compiler
 
-- `path.leaf` accessor + `merkleTreePathRoot` arity — confirm against runtime
-  (fallback forms noted in `verifiedValue`).
+- `path.leaf` accessor + `merkleTreePathRoot<10, Bytes<32>>` — compile + the
+  Merkle-path check in `verifiedValue` passes in the test suite.
+- `?:` returning a struct (`t1 ? tier1 : tier0`) — allowed, works.
+- `blockTimeLt` / `blockTimeGte` — drive `borrow`'s due-in-future check and
+  `liquidate`'s default check; the simulator threads block time.
+
+## Still open
+
 - No block-time getter on Midnight: `borrow` takes `dueTime` and only asserts it
-  is in the future (`blockTimeLt`). A relative term cap needs an oracle/keeper.
-- `?:` on struct values (`useTier1 ? tier1 : tier0`) — verify Compact allows it;
-  else branch explicitly.
-- Contract tests + `score.ts` ↔ circuit parity tests.
+  is in the future. A relative term cap needs an oracle/keeper.
+- Proving keys are generated locally; wire a proof server for real proofs.
 
 See `../pending.md` → Core contract.

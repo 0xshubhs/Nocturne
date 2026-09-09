@@ -1,15 +1,16 @@
 // defi1 — private state + witness implementations for lending.compact
 //
-// The Compact compiler generates a typed contract module from lending.compact.
 // These callbacks supply the private (witness) inputs at proving time. They run
-// locally in the caller's client and never leave the device.
-//
-// Types (`WitnessContext`, `MerkleTreePath`) come from the generated module /
-// @midnight-ntwrk/compact-runtime once the contract is compiled — imported here
-// as `any` placeholders until then.
+// locally in the caller's client and never leave the device. The attestation
+// witnesses recompute the exact leaf the circuit expects (via the generated
+// pure circuits) and pull its Merkle path from the on-chain attestation tree.
 
-type WitnessContext<PS> = { privateState: PS; ledger: any };
-type MerkleTreePath = unknown;
+import { pureCircuits, type Ledger, type Witnesses } from "./managed/lending/contract/index.js";
+
+type WitnessContext = { ledger: Ledger; privateState: DefiPrivateState; contractAddress: string };
+// The circuit needs a concrete path; `findPathForLeaf` returns `undefined` when
+// the leaf was never issued, which we treat as a hard error (see below).
+type MerklePath = NonNullable<ReturnType<Ledger["attestationRoot"]["findPathForLeaf"]>>;
 
 // One raw attestation the caller holds locally.
 export type Attestation = {
@@ -23,59 +24,60 @@ export type DefiPrivateState = {
   bank?: Attestation;
   salary?: Attestation;
   repay?: Attestation;
-  crossChainScore: bigint; // score contributed by verified external wallets
+  crossChainScore: bigint;
 };
 
 const ZERO_ATT: Attestation = { value: 0n, expiry: 0n };
 
 // domain separators — must match lending.compact
-const DOM = {
-  bank: "defi1:att:bank:v1",
-  salary: "defi1:att:salary:v1",
-  repay: "defi1:att:repay:v1",
+export const FIELD_TAG = {
+  bank: pad32("defi1:att:bank:v1"),
+  salary: pad32("defi1:att:salary:v1"),
+  repay: pad32("defi1:att:repay:v1"),
 } as const;
 
-// Recompute the leaf the issuer committed, then ask the on-chain attestation
-// tree for its Merkle path. `leafFor` must mirror `attestationLeaf` in the
-// contract — wired up once the generated `pureCircuits` are available.
-function pathFor(
-  ctx: WitnessContext<DefiPrivateState>,
-  _domain: string,
-  _att: Attestation,
-): MerkleTreePath {
-  // return ctx.ledger.attestationRoot.findPathForLeaf(leafFor(_domain, _att, subjectId));
-  return ctx.ledger.attestationRoot.findPathForLeaf(/* leaf */ undefined);
+export function pad32(s: string): Uint8Array {
+  const b = new Uint8Array(32);
+  b.set(new TextEncoder().encode(s));
+  return b;
 }
 
-export const witnesses = {
-  callerSecret: (
-    ctx: WitnessContext<DefiPrivateState>,
-  ): [DefiPrivateState, Uint8Array] => [ctx.privateState, ctx.privateState.callerSecret],
+/** The leaf the issuer commits for an attestation about `subject`. */
+export function attestationLeaf(
+  fieldTag: Uint8Array,
+  att: Attestation,
+  subject: Uint8Array,
+): Uint8Array {
+  return pureCircuits.attestationLeaf(fieldTag, att.value, att.expiry, subject);
+}
 
-  bankAttestation: (
-    ctx: WitnessContext<DefiPrivateState>,
-  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
-    const a = ctx.privateState.bank ?? ZERO_ATT;
-    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.bank, a)]];
-  },
+function attestationWitness(fieldTag: Uint8Array, pick: (ps: DefiPrivateState) => Attestation | undefined) {
+  return (ctx: WitnessContext): [DefiPrivateState, [bigint, bigint, MerklePath]] => {
+    const att = pick(ctx.privateState) ?? ZERO_ATT;
+    const subject = pureCircuits.makeSubjectId(ctx.privateState.callerSecret);
+    const leaf = attestationLeaf(fieldTag, att, subject);
+    const path = ctx.ledger.attestationRoot.findPathForLeaf(leaf);
+    if (path === undefined) {
+      throw new Error(
+        "attestation leaf not found in the issuer tree — the issuer has not attested this (field, value, expiry) for this identity",
+      );
+    }
+    return [ctx.privateState, [att.value, att.expiry, path]];
+  };
+}
 
-  salaryAttestation: (
-    ctx: WitnessContext<DefiPrivateState>,
-  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
-    const a = ctx.privateState.salary ?? ZERO_ATT;
-    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.salary, a)]];
-  },
-
-  repayAttestation: (
-    ctx: WitnessContext<DefiPrivateState>,
-  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
-    const a = ctx.privateState.repay ?? ZERO_ATT;
-    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.repay, a)]];
-  },
-
-  crossChainScore: (
-    ctx: WitnessContext<DefiPrivateState>,
-  ): [DefiPrivateState, bigint] => [ctx.privateState, ctx.privateState.crossChainScore],
+export const witnesses: Witnesses<DefiPrivateState> = {
+  callerSecret: (ctx: WitnessContext): [DefiPrivateState, Uint8Array] => [
+    ctx.privateState,
+    ctx.privateState.callerSecret,
+  ],
+  bankAttestation: attestationWitness(FIELD_TAG.bank, (ps) => ps.bank),
+  salaryAttestation: attestationWitness(FIELD_TAG.salary, (ps) => ps.salary),
+  repayAttestation: attestationWitness(FIELD_TAG.repay, (ps) => ps.repay),
+  crossChainScore: (ctx: WitnessContext): [DefiPrivateState, bigint] => [
+    ctx.privateState,
+    ctx.privateState.crossChainScore,
+  ],
 };
 
 export function emptyPrivateState(secretKey: Uint8Array): DefiPrivateState {
