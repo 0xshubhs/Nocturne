@@ -24,6 +24,9 @@ import {
 
 const COIN_PK = "00".repeat(32);
 
+/** Expiry for the onboarding zero leaf — far enough out to never bind in tests. */
+const FAR_FUTURE = 4_000_000_000n;
+
 export class LendingSim {
   private readonly contract: Contract<DefiPrivateState>;
   private readonly addr: string;
@@ -90,17 +93,18 @@ export class LendingSim {
     return pureCircuits.makeNullifier(secret);
   }
 
-  /** Issue the three attestations a borrower needs, as the issuer. */
+  /** Issue the four attestations a borrower needs, as the issuer. */
   async issueFor(
     issuerSecret: Uint8Array,
     borrowerSecret: Uint8Array,
-    atts: { bank: Attestation; salary: Attestation; repay: Attestation },
+    atts: BorrowerAttestations,
   ) {
     const subject = this.subjectId(borrowerSecret);
     for (const [tag, att] of [
       [FIELD_TAG.bank, atts.bank],
       [FIELD_TAG.salary, atts.salary],
       [FIELD_TAG.repay, atts.repay],
+      [FIELD_TAG.crossChain, atts.crossChain ?? ZERO_CROSS_CHAIN],
     ] as const) {
       const leaf = attestationLeaf(tag, att, subject);
       await this.issueAttestation(issuerSecret, leaf);
@@ -144,10 +148,29 @@ export class LendingSim {
   }
 }
 
+/**
+ * The attestation set a borrower holds. `crossChain` defaults to the
+ * zero-valued leaf every subject is onboarded with.
+ */
+export type BorrowerAttestations = {
+  bank: Attestation;
+  salary: Attestation;
+  repay: Attestation;
+  crossChain?: Attestation;
+};
+
+/** The zero-valued cross-chain leaf minted for every subject at onboarding. */
+export const ZERO_CROSS_CHAIN: Attestation = { value: 0n, expiry: FAR_FUTURE };
+
 export function borrowerState(
   secret: Uint8Array,
-  atts: { bank: Attestation; salary: Attestation; repay: Attestation },
-  crossChainScore = 0n,
+  atts: BorrowerAttestations,
 ): DefiPrivateState {
-  return { callerSecret: secret, ...atts, crossChainScore };
+  return {
+    callerSecret: secret,
+    bank: atts.bank,
+    salary: atts.salary,
+    repay: atts.repay,
+    crossChain: atts.crossChain ?? ZERO_CROSS_CHAIN,
+  };
 }

@@ -73,12 +73,25 @@ witness bankAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
 witness salaryAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
 witness repayAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
 
-// Score contributed by verified external wallets (bounded by the client).
-witness crossChainScore(): Uint<64>;
+// Score contributed by verified external wallets. Attested exactly like the
+// other three: the issuer (acting as the cross-chain oracle) checks the
+// borrower's ownership proof for the external address, derives a bounded
+// contribution from that wallet's history, and commits a leaf. An
+// unconstrained witness here would let any borrower mint their own score.
+// Every subject gets a zero-valued leaf at onboarding, so a borrower who has
+// linked nothing still has a path to prove.
+witness crossChainAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
 
 // ---------------------------------------------------------------------------
 // Key derivation — every hash carries a unique domain separator
 // ---------------------------------------------------------------------------
+
+// Longest loan a borrower may open, in seconds (90 days). Exposed as a circuit
+// so the client reads the same bound the chain enforces (Compact has no
+// module-level constants).
+export pure circuit maxLoanTermSeconds(): Uint<64> {
+  return 7776000;
+}
 
 export pure circuit deriveIssuerPk(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:issuer:v1"), sk]);
@@ -129,8 +142,10 @@ export pure circuit scoreOf(
 constructor(issuerSecret: Bytes<32>) {
   issuerPk = disclose(deriveIssuerPk(issuerSecret));
   poolLiquidity = 0;
-  // Tier 0: conservative. Tier 1: stronger private score, more leverage.
-  tier0 = TierRule { minScore: 500,  maxLtvBps: 8000,  aprBps: 900 };
+  // Tier 0: conservative, over-collateralized (borrow at most half the
+  // collateral). Tier 1: a stronger private score buys genuine
+  // under-collateralization — 150% of collateral, 3x the tier-0 ceiling.
+  tier0 = TierRule { minScore: 500,  maxLtvBps: 5000,  aprBps: 900 };
   tier1 = TierRule { minScore: 750,  maxLtvBps: 15000, aprBps: 1400 };
 }
 
@@ -206,13 +221,23 @@ export circuit borrow(
   assert(!activeNullifiers.member(nullifier), "identity already has an active loan");
   assert(blockTimeLt(due), "due time must be in the future");
 
+  // Term cap. There is no block-time getter, only the two comparators, so the
+  // bound is expressed as a second comparison: `due - maxLoanTermSeconds()`
+  // must already be in the past, which is exactly `due <= now + MAX_TERM`.
+  // The branch keeps the Uint subtraction from underflowing for a `due` inside
+  // the first 90 days of the epoch (where the bound is vacuous anyway).
+  const maxTerm = maxLoanTermSeconds();
+  const termFloor = (due >= maxTerm ? (due - maxTerm) : 0) as Uint<64>;
+  assert(blockTimeGte(termFloor), "loan term exceeds the maximum");
+
   // --- score, computed entirely over private data ---
   const subject = makeSubjectId(secret);
   const bankV   = verifiedValue(pad(32, "defi1:att:bank:v1"),   subject, bankAttestation());
   const salaryV = verifiedValue(pad(32, "defi1:att:salary:v1"), subject, salaryAttestation());
   const repayV  = verifiedValue(pad(32, "defi1:att:repay:v1"),  subject, repayAttestation());
+  const crossV  = verifiedValue(pad(32, "defi1:att:crosschain:v1"), subject, crossChainAttestation());
 
-  const score = scoreOf(bankV, salaryV, repayV, crossChainScore());
+  const score = scoreOf(bankV, salaryV, repayV, crossV);
 
   const rule = t1 ? tier1 : tier0;
   assert(disclose(score >= rule.minScore), "score below required tier");

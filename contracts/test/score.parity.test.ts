@@ -3,7 +3,15 @@
 
 import { describe, expect, it } from "vitest";
 import { pureCircuits } from "../src/managed/lending/contract/index.js";
-import { computeScore, tierFor, withinLtv, TIER_RULES } from "../src/score.js";
+import {
+  computeScore,
+  interestDue,
+  MAX_LOAN_TERM_SECONDS,
+  tierFor,
+  TIER_RULES,
+  withinLtv,
+  withinTerm,
+} from "../src/score.js";
 
 const now = 1_000_000n;
 const future = { expiry: now + 10_000n };
@@ -40,11 +48,41 @@ describe("tier + LTV helpers", () => {
   });
 
   it("LTV boundary is inclusive", () => {
-    // tier 0 maxLtvBps = 8000 -> 80%. 800 against 1000 collateral is exactly at the cap.
-    expect(withinLtv(800n, 1000n, 0)).toBe(true);
-    expect(withinLtv(801n, 1000n, 0)).toBe(false);
+    // tier 0 maxLtvBps = 5000 -> 50%. 500 against 1000 collateral is exactly at the cap.
+    expect(withinLtv(500n, 1000n, 0)).toBe(true);
+    expect(withinLtv(501n, 1000n, 0)).toBe(false);
     // tier 1 allows 150%
     expect(withinLtv(1500n, 1000n, 1)).toBe(true);
     expect(withinLtv(1501n, 1000n, 1)).toBe(false);
+  });
+});
+
+describe("loan term cap", () => {
+  it("score.ts mirrors the circuit's maxLoanTermSeconds()", () => {
+    expect(MAX_LOAN_TERM_SECONDS).toBe(pureCircuits.maxLoanTermSeconds());
+  });
+
+  it("withinTerm brackets the window the circuit enforces", () => {
+    const now = 1_000_000n;
+    expect(withinTerm(now, now)).toBe(false); // must be in the future
+    expect(withinTerm(now + 1n, now)).toBe(true);
+    expect(withinTerm(now + MAX_LOAN_TERM_SECONDS, now)).toBe(true);
+    expect(withinTerm(now + MAX_LOAN_TERM_SECONDS + 1n, now)).toBe(false);
+  });
+});
+
+describe("interestDue", () => {
+  it("charges a full year of APR over a full year", () => {
+    const year = 365n * 24n * 3600n;
+    // tier 0 is 900bps = 9% -> 90 on a principal of 1000
+    expect(interestDue(1000n, TIER_RULES[0].aprBps, year)).toBe(90n);
+    // tier 1 is 1400bps = 14%
+    expect(interestDue(1000n, TIER_RULES[1].aprBps, year)).toBe(140n);
+  });
+
+  it("pro-rates a partial term and floors the remainder", () => {
+    const year = 365n * 24n * 3600n;
+    expect(interestDue(1000n, 900n, year / 2n)).toBe(45n);
+    expect(interestDue(1n, 900n, 1n)).toBe(0n);
   });
 });

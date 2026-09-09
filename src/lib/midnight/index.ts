@@ -1,6 +1,8 @@
 // defi1 — Midnight integration layer (plan.md §3).
 //
 //   config          network + service endpoints, wallet-config merge
+//   score           credit score, tier table, LTV + term rules (circuit mirror)
+//   cross-chain     external-wallet ownership proof + history import
 //   connector       DApp Connector API: list / connect / status / DUST
 //   private-state   AES-GCM encrypted store keyed to the wallet
 //   codec           bigint + Uint8Array-safe JSON
@@ -10,6 +12,8 @@
 //   use-wallet      React context / hook
 
 export * from "./config";
+export * from "./score";
+export * from "./cross-chain";
 export * from "./connector";
 export * from "./private-state";
 export * from "./codec";

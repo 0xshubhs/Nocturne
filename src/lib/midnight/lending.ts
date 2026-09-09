@@ -4,17 +4,21 @@
 // The private-state shape MUST match `contracts/src/witnesses.ts`
 // (`DefiPrivateState`). Kept as a local mirror because the contract package is
 // a sibling workspace; the fields and semantics are identical.
+//
+// Linked external wallets live under their own key rather than inside the
+// borrower state, so the mirror stays exact — the witnesses layer has no
+// business knowing about them, and only the derived `crossChain` attestation
+// ever reaches a circuit.
 
 import type { ConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import { EncryptedPrivateStateStore, deriveStoreKey, type StorageBackend } from "./private-state";
+import type { LinkedWallet } from "./cross-chain";
+import type { Attestation, AttestationField } from "./score";
 
 export const LENDING_PRIVATE_STATE_ID = "defi1.borrower" as const;
+export const LINKED_WALLETS_ID = "defi1.linked-wallets" as const;
 
-/** One attestation the borrower holds (bucketed value, never the raw figure). */
-export type Attestation = {
-  value: bigint;
-  expiry: bigint; // unix seconds
-};
+export type { Attestation, AttestationField };
 
 /** Mirror of `DefiPrivateState` in contracts/src/witnesses.ts. */
 export type BorrowerPrivateState = {
@@ -22,11 +26,17 @@ export type BorrowerPrivateState = {
   bank?: Attestation;
   salary?: Attestation;
   repay?: Attestation;
-  crossChainScore: bigint;
+  /**
+   * Minted by the issuer acting as the cross-chain oracle, after it checks an
+   * external-wallet ownership proof. Every subject is onboarded with a
+   * zero-valued leaf, so a borrower who has linked nothing still has a path to
+   * prove. The borrower cannot mint this.
+   */
+  crossChain?: Attestation;
 };
 
 export function emptyBorrowerState(callerSecret: Uint8Array): BorrowerPrivateState {
-  return { callerSecret, crossChainScore: 0n };
+  return { callerSecret };
 }
 
 /**
@@ -65,12 +75,36 @@ export class LendingStateManager {
     return next;
   }
 
-  async importAttestation(field: "bank" | "salary" | "repay", att: Attestation): Promise<BorrowerPrivateState> {
+  async importAttestation(field: AttestationField, att: Attestation): Promise<BorrowerPrivateState> {
     return this.update((prev) => ({ ...prev, [field]: att }));
   }
 
-  async setCrossChainScore(score: bigint): Promise<BorrowerPrivateState> {
-    return this.update((prev) => ({ ...prev, crossChainScore: score }));
+  // --- linked external wallets (plan.md §4) ---------------------------
+
+  async linkedWallets(): Promise<LinkedWallet[]> {
+    return (await this.store.get<LinkedWallet[]>(LINKED_WALLETS_ID)) ?? [];
+  }
+
+  /**
+   * Record a verified external wallet. Re-linking the same address on the same
+   * chain replaces the earlier record rather than accumulating duplicates.
+   */
+  async addLinkedWallet(wallet: LinkedWallet): Promise<LinkedWallet[]> {
+    const existing = await this.linkedWallets();
+    const rest = existing.filter(
+      (w) => !(w.chain === wallet.chain && w.address.toLowerCase() === wallet.address.toLowerCase()),
+    );
+    const next = [...rest, wallet];
+    await this.store.set(LINKED_WALLETS_ID, next);
+    return next;
+  }
+
+  async removeLinkedWallet(chain: string, address: string): Promise<LinkedWallet[]> {
+    const next = (await this.linkedWallets()).filter(
+      (w) => !(w.chain === chain && w.address.toLowerCase() === address.toLowerCase()),
+    );
+    await this.store.set(LINKED_WALLETS_ID, next);
+    return next;
   }
 
   async reset(): Promise<void> {

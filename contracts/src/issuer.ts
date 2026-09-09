@@ -12,12 +12,20 @@
 import { pureCircuits } from "./managed/lending/contract/index.js";
 import { attestationLeaf, FIELD_TAG, type Attestation } from "./witnesses.js";
 
-export type AttestationField = "bank" | "salary" | "repay";
+export type AttestationField = "bank" | "salary" | "repay" | "crossChain";
+
+export const ATTESTATION_FIELDS: readonly AttestationField[] = [
+  "bank",
+  "salary",
+  "repay",
+  "crossChain",
+] as const;
 
 const FIELD_TAGS: Record<AttestationField, Uint8Array> = {
   bank: FIELD_TAG.bank,
   salary: FIELD_TAG.salary,
   repay: FIELD_TAG.repay,
+  crossChain: FIELD_TAG.crossChain,
 };
 
 /** A signed-off attestation plus the field it covers (what the borrower stores). */
@@ -68,17 +76,35 @@ export class AttestationIssuer {
     return { field: req.field, value: req.value, expiry: req.expiry };
   }
 
-  /** Issue a full set (bank / salary / repay) for one subject. */
+  /** Issue a full set (bank / salary / repay / crossChain) for one subject. */
   async issueSet(
     subjectSecret: Uint8Array,
     values: Record<AttestationField, bigint>,
     expiry: bigint,
   ): Promise<Record<AttestationField, IssuedAttestation>> {
     const out = {} as Record<AttestationField, IssuedAttestation>;
-    for (const field of ["bank", "salary", "repay"] as const) {
+    for (const field of ATTESTATION_FIELDS) {
       out[field] = await this.issue({ subjectSecret, field, value: values[field], expiry });
     }
     return out;
+  }
+
+  /**
+   * Re-attest the cross-chain contribution after a borrower proved ownership of
+   * an external wallet. The old leaf stays in the historic tree — harmless,
+   * since only the issuer can mint a higher one.
+   */
+  async attestCrossChain(
+    subjectSecret: Uint8Array,
+    value: bigint,
+    expiry: bigint,
+  ): Promise<IssuedAttestation> {
+    if (value > MAX_CROSS_CHAIN_SCORE) {
+      throw new Error(
+        `cross-chain contribution ${value} exceeds the cap of ${MAX_CROSS_CHAIN_SCORE}`,
+      );
+    }
+    return this.issue({ subjectSecret, field: "crossChain", value, expiry });
   }
 
   /** Issue the preset band for a named demo persona. */
@@ -100,11 +126,18 @@ export class AttestationIssuer {
 export type PersonaName = "alice" | "bob";
 
 export const DEMO_PERSONAS: Record<PersonaName, Record<AttestationField, bigint>> = {
-  // 200*2 + 150*3 + 90*4 = 1210  ->  clears tier 1 outright
-  alice: { bank: 200n, salary: 150n, repay: 90n },
-  // 100*2 + 80*3 + 15*4 = 500   ->  tier 0 only; needs cross-chain for tier 1
-  bob: { bank: 100n, salary: 80n, repay: 15n },
+  // 200*2 + 150*3 + 90*4 + 0 = 1210  ->  clears tier 1 outright, no linked wallet
+  alice: { bank: 200n, salary: 150n, repay: 90n, crossChain: 0n },
+  // 100*2 + 80*3 + 15*4 + 120 = 620  ->  tier 0; the linked wallet helps but
+  // does not close a 250-point gap on its own
+  bob: { bank: 100n, salary: 80n, repay: 15n, crossChain: 120n },
 };
+
+/**
+ * Ceiling on what a verified external wallet can contribute. The issuer
+ * enforces it when minting; the borrower cannot mint at all.
+ */
+export const MAX_CROSS_CHAIN_SCORE = 300n;
 
 // ---------------------------------------------------------------------------
 // Keypair helpers

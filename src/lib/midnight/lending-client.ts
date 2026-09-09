@@ -17,6 +17,7 @@ import { queryContractState } from "./providers";
 import {
   LendingStateManager,
   type Attestation,
+  type AttestationField,
   type BorrowerPrivateState,
 } from "./lending";
 
@@ -75,12 +76,8 @@ export class LendingClient {
     return this.state.load();
   }
 
-  importAttestation(field: "bank" | "salary" | "repay", att: Attestation): Promise<BorrowerPrivateState> {
+  importAttestation(field: AttestationField, att: Attestation): Promise<BorrowerPrivateState> {
     return this.state.importAttestation(field, att);
-  }
-
-  setCrossChainScore(score: bigint): Promise<BorrowerPrivateState> {
-    return this.state.setCrossChainScore(score);
   }
 
   // --- lifecycle ---------------------------------------------------

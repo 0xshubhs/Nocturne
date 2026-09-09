@@ -33,6 +33,38 @@ export function listWallets(): { info: WalletInfo; api: InitialAPI }[] {
   }));
 }
 
+// `listWallets()` builds a fresh array each call, which `useSyncExternalStore`
+// would read as a new value on every render. Cache it, keyed on which wallet
+// UUIDs are injected, so the snapshot is referentially stable.
+let cachedInfos: WalletInfo[] = [];
+let cachedKey: string | null = null;
+const NO_WALLETS: WalletInfo[] = [];
+
+/** Referentially stable list of injected wallets. */
+export function walletsSnapshot(): WalletInfo[] {
+  const injected = typeof window !== "undefined" ? window.midnight : undefined;
+  const key = injected ? Object.keys(injected).sort().join(",") : "";
+  if (key !== cachedKey) {
+    cachedKey = key;
+    cachedInfos = key === "" ? NO_WALLETS : listWallets().map((w) => w.info);
+  }
+  return cachedInfos;
+}
+
+/** On the server nothing is injected, so the snapshot is empty. */
+export function walletsServerSnapshot(): WalletInfo[] {
+  return NO_WALLETS;
+}
+
+/**
+ * Wallets inject themselves before hydration and the connector API has no
+ * "wallet appeared" event, so there is nothing to subscribe to — the snapshot
+ * React reads after hydration is the final one.
+ */
+export function subscribeWallets(): () => void {
+  return () => {};
+}
+
 export function pickWallet(rdns?: string): InitialAPI {
   const wallets = listWallets();
   if (wallets.length === 0) throw new WalletNotFoundError();

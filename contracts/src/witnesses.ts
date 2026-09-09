@@ -19,12 +19,17 @@ export type Attestation = {
 };
 
 // Everything the borrower stores locally, encrypted at rest, keyed to the wallet.
+//
+// `crossChain` is an attestation like any other: the issuer, acting as the
+// cross-chain oracle, mints it after checking an external-wallet ownership
+// proof. A borrower who has linked nothing holds the zero-valued leaf minted
+// at onboarding.
 export type DefiPrivateState = {
   callerSecret: Uint8Array; // 32 bytes, long-lived identity secret
   bank?: Attestation;
   salary?: Attestation;
   repay?: Attestation;
-  crossChainScore: bigint;
+  crossChain?: Attestation;
 };
 
 const ZERO_ATT: Attestation = { value: 0n, expiry: 0n };
@@ -34,6 +39,7 @@ export const FIELD_TAG = {
   bank: pad32("defi1:att:bank:v1"),
   salary: pad32("defi1:att:salary:v1"),
   repay: pad32("defi1:att:repay:v1"),
+  crossChain: pad32("defi1:att:crosschain:v1"),
 } as const;
 
 export function pad32(s: string): Uint8Array {
@@ -74,15 +80,9 @@ export const witnesses: Witnesses<DefiPrivateState> = {
   bankAttestation: attestationWitness(FIELD_TAG.bank, (ps) => ps.bank),
   salaryAttestation: attestationWitness(FIELD_TAG.salary, (ps) => ps.salary),
   repayAttestation: attestationWitness(FIELD_TAG.repay, (ps) => ps.repay),
-  crossChainScore: (ctx: WitnessContext): [DefiPrivateState, bigint] => [
-    ctx.privateState,
-    ctx.privateState.crossChainScore,
-  ],
+  crossChainAttestation: attestationWitness(FIELD_TAG.crossChain, (ps) => ps.crossChain),
 };
 
 export function emptyPrivateState(secretKey: Uint8Array): DefiPrivateState {
-  return { callerSecret: secretKey, crossChainScore: 0n };
+  return { callerSecret: secretKey };
 }
-
-// TODO(wallet): load/persist DefiPrivateState through the Midnight private state
-// provider once the wallet connector lands (plan.md §3).

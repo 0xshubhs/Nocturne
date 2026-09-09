@@ -10,6 +10,7 @@
 import { LendingSim } from "../test/simulator.js";
 import {
   AttestationIssuer,
+  ATTESTATION_FIELDS,
   fromHex,
   generateIssuerSecret,
   toHex,
@@ -55,14 +56,14 @@ async function main() {
     const secret = subjectSecrets[persona];
     const atts = await issuer.issuePersona(persona, secret, EXPIRY);
     log(`${persona}:`);
-    for (const field of ["bank", "salary", "repay"] as const) {
+    for (const field of ATTESTATION_FIELDS) {
       const a: IssuedAttestation = atts[field];
       log(`  ${field.padEnd(7)} value=${a.value}  expiry=${a.expiry}`);
     }
     (bundle.personas as Record<string, unknown>)[persona] = {
       subjectSecret: toHex(secret),
       attestations: Object.fromEntries(
-        (["bank", "salary", "repay"] as const).map((f) => [
+        ATTESTATION_FIELDS.map((f) => [
           f,
           { value: atts[f].value.toString(), expiry: atts[f].expiry.toString() },
         ]),

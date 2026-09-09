@@ -1,86 +1,73 @@
 "use client";
 
-// defi1 — connect / status / DUST / proof-server panel. Minimal styling; this
-// is the wiring surface for the borrower + pool views (plan.md §6).
+// defi1 — wallet detail, shown from the header button once connected.
+//
+// Everything here belongs to the live path (plan.md §3): the unshielded
+// address, the DUST balance that pays for a proof, and whether the local proof
+// server is actually reachable. In demo mode none of it is needed, which is
+// why it lives behind the address rather than on the dashboard.
 
 import { useWallet } from "@/lib/midnight";
+import { Button, Pill, Row } from "./ui";
 
-function short(addr: string): string {
-  return addr.length > 16 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr;
-}
-
-export function WalletPanel() {
+export function WalletPanel({ onClose }: { onClose?: () => void }) {
   const { status, address, error, dust, proofServer, availableWallets, connect, disconnect, refresh } =
     useWallet();
 
-  return (
-    <div className="w-full max-w-md rounded-xl border border-black/10 dark:border-white/15 p-5 text-sm flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="font-medium">Midnight wallet</span>
-        <span
-          className={
-            status === "connected"
-              ? "text-green-600"
-              : status === "error"
-                ? "text-red-600"
-                : "text-zinc-500"
-          }
+  if (status !== "connected") {
+    return (
+      <div className="w-72 rounded-xl border border-border bg-bg-raised p-4 flex flex-col gap-3 text-sm">
+        <p className="text-xs text-fg-dim leading-relaxed">
+          {availableWallets.length === 0
+            ? "No Midnight wallet detected. The demo runs without one — connect only to exercise the live path."
+            : `Detected: ${availableWallets.map((w) => w.name).join(", ")}`}
+        </p>
+        <Button
+          variant="ghost"
+          full
+          onClick={() => void connect()}
+          disabled={status === "connecting" || availableWallets.length === 0}
         >
-          {status}
-        </span>
+          {status === "connecting" ? "Connecting…" : "Connect wallet"}
+        </Button>
+        {error && <p className="text-xs text-danger">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-72 rounded-xl border border-border bg-bg-raised p-4 flex flex-col gap-3 text-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-fg-dim">Connected</span>
+        <Pill tone="private">live</Pill>
       </div>
 
-      {status !== "connected" ? (
-        <>
-          <p className="text-zinc-500">
-            {availableWallets.length === 0
-              ? "No Midnight wallet detected — install an extension and refresh."
-              : `Detected: ${availableWallets.map((w) => w.name).join(", ")}`}
-          </p>
-          <button
-            type="button"
-            onClick={() => void connect()}
-            disabled={status === "connecting"}
-            className="h-10 rounded-full bg-foreground text-background disabled:opacity-50"
-          >
-            {status === "connecting" ? "Connecting…" : "Connect wallet"}
-          </button>
-          {error && <p className="text-red-600">{error}</p>}
-        </>
-      ) : (
-        <>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">Address</span>
-            <code title={address ?? ""}>{address ? short(address) : "—"}</code>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">DUST (fees)</span>
-            <span>{dust ? `${dust.balance} / cap ${dust.cap}` : "—"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">Proof server</span>
-            <span className={proofServer?.ok ? "text-green-600" : "text-amber-600"}>
-              {proofServer ? proofServer.detail : "checking…"}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              className="h-9 flex-1 rounded-full border border-black/10 dark:border-white/15"
-            >
-              Refresh
-            </button>
-            <button
-              type="button"
-              onClick={disconnect}
-              className="h-9 flex-1 rounded-full border border-black/10 dark:border-white/15"
-            >
-              Disconnect
-            </button>
-          </div>
-        </>
-      )}
+      <Row label="Address">
+        <span className="text-[11px]" title={address ?? ""}>
+          {address ? `${address.slice(0, 12)}…${address.slice(-6)}` : "—"}
+        </span>
+      </Row>
+      <Row label="DUST" tone="public">
+        {dust ? `${dust.balance} / ${dust.cap}` : "—"}
+      </Row>
+      <Row label="Proof server" tone={proofServer?.ok ? "private" : "danger"}>
+        <span className="text-[11px]">{proofServer ? (proofServer.ok ? "reachable" : "unreachable") : "checking…"}</span>
+      </Row>
+
+      <div className="flex gap-2">
+        <Button variant="ghost" onClick={() => void refresh()}>
+          Refresh
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            disconnect();
+            onClose?.();
+          }}
+        >
+          Disconnect
+        </Button>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Emitted by `compact compile` — not ours to lint.
+    "contracts/src/managed/**",
   ]),
 ]);
 

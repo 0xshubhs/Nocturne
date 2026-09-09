@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
+/* defi1 — dark-first, because the chain is called Midnight.
+ *
+ * The palette carries the one idea the whole product is about:
+ *   emerald  = private, yours, never leaves the device
+ *   amber    = public, on-chain, anyone can read it
+ * Nothing else gets a saturated colour, so those two always mean something. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #08090c;
+  --bg-raised: #0e1015;
+  --bg-inset: #0a0b0f;
+  --border: #1e212b;
+  --border-strong: #2a2e3b;
+  --fg: #e8eaf0;
+  --fg-muted: #8b91a3;
+  --fg-dim: #5c6274;
+
+  --private: #34d399;
+  --private-dim: #34d39926;
+  --public: #fbbf24;
+  --public-dim: #fbbf2426;
+  --danger: #f87171;
+  --danger-dim: #f8717126;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-inset: var(--bg-inset);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-dim: var(--fg-dim);
+  --color-private: var(--private);
+  --color-public: var(--public);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A faint grid, the way every chain explorer has one. Purely atmosphere. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, #ffffff05 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff05 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Numbers that change should not make the layout jump. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse-ring {
+  0% { opacity: 0.9; }
+  50% { opacity: 0.35; }
+  100% { opacity: 0.9; }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.6s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(320%); }
+}
+.animate-sweep {
+  animation: sweep 1.4s ease-in-out infinite;
 }

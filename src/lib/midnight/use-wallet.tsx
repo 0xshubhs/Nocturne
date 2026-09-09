@@ -6,12 +6,23 @@
 // status and DUST balance. Wrap the app in <WalletProvider> (see layout.tsx)
 // and read it with useWallet().
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   connect as connectWallet,
   connectionStatus,
   dustState,
-  listWallets,
+  subscribeWallets,
+  walletsServerSnapshot,
+  walletsSnapshot,
   type Connection,
   type DustState,
   type WalletInfo,
@@ -44,12 +55,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [dust, setDust] = useState<DustState | null>(null);
   const [proofServer, setProofServer] = useState<ProofServerHealth | null>(null);
-  const [availableWallets, setAvailableWallets] = useState<WalletInfo[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    setAvailableWallets(listWallets().map((w) => w.info));
-  }, []);
+  // `window.midnight` only exists in the browser, so this is external state:
+  // empty during SSR, populated on the client after hydration.
+  const availableWallets = useSyncExternalStore(
+    subscribeWallets,
+    walletsSnapshot,
+    walletsServerSnapshot,
+  );
 
   const disconnect = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);

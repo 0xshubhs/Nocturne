@@ -27,7 +27,7 @@ export function computeScore(
 
 // Tier table mirrors the constructor in lending.compact.
 export const TIER_RULES = {
-  0: { minScore: 500n, maxLtvBps: 8000n, aprBps: 900n },
+  0: { minScore: 500n, maxLtvBps: 5000n, aprBps: 900n },
   1: { minScore: 750n, maxLtvBps: 15000n, aprBps: 1400n },
 } as const;
 
@@ -40,4 +40,21 @@ export function tierFor(score: bigint): 0 | 1 | null {
 // amount / collateral <= maxLtvBps / 10000
 export function withinLtv(amount: bigint, collateral: bigint, tier: 0 | 1): boolean {
   return amount * 10000n <= collateral * TIER_RULES[tier].maxLtvBps;
+}
+
+/**
+ * Longest loan term the contract accepts, in seconds (90 days). Mirrors
+ * `maxLoanTermSeconds()` in lending.compact — parity-tested in
+ * score.parity.test.ts.
+ */
+export const MAX_LOAN_TERM_SECONDS = 7_776_000n;
+
+/** `borrow` requires `now < dueTime <= now + MAX_LOAN_TERM_SECONDS`. */
+export function withinTerm(dueTime: bigint, now: bigint): boolean {
+  return dueTime > now && dueTime <= now + MAX_LOAN_TERM_SECONDS;
+}
+
+/** Interest owed at maturity for a simple (non-compounding) APR. */
+export function interestDue(principal: bigint, aprBps: bigint, termSeconds: bigint): bigint {
+  return (principal * aprBps * termSeconds) / (10000n * 365n * 24n * 3600n);
 }

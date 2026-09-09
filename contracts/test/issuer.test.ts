@@ -9,6 +9,7 @@ import {
   fromHex,
   generateIssuerSecret,
   issuerPublicKey,
+  MAX_CROSS_CHAIN_SCORE,
   toHex,
 } from "../src/issuer.js";
 
@@ -37,44 +38,58 @@ describe("AttestationIssuer", () => {
     const { sim, issuer } = await freshIssuer();
 
     const aliceAtts = await issuer.issuePersona("alice", ALICE, EXPIRY);
-    expect(sim.ledger.attestationRoot.firstFree()).toBe(3n);
+    expect(sim.ledger.attestationRoot.firstFree()).toBe(4n);
 
-    const ps = borrowerState(
-      ALICE,
-      { bank: aliceAtts.bank, salary: aliceAtts.salary, repay: aliceAtts.repay },
-      0n,
-    );
+    const ps = borrowerState(ALICE, {
+      bank: aliceAtts.bank,
+      salary: aliceAtts.salary,
+      repay: aliceAtts.repay,
+      crossChain: aliceAtts.crossChain,
+    });
     await sim.borrow(ps, true, 1000n, 1000n, DUE); // tier 1
     expect(sim.ledger.loans.lookup(sim.nullifier(ALICE)).tier).toBe(1n);
   });
 
-  it("bob's band is tier 0 only without cross-chain, tier 1 with it", async () => {
+  it("bob's band is tier 0 with his own cross-chain leaf, tier 1 once it is raised", async () => {
     const { sim, issuer } = await freshIssuer();
     const atts = await issuer.issuePersona("bob", BOB, EXPIRY);
-    const base = { bank: atts.bank, salary: atts.salary, repay: atts.repay };
+    const base = {
+      bank: atts.bank,
+      salary: atts.salary,
+      repay: atts.repay,
+      crossChain: atts.crossChain,
+    };
 
-    await expect(sim.borrow(borrowerState(BOB, base, 0n), true, 400n, 1000n, DUE)).rejects.toThrow(
+    // 100*2 + 80*3 + 15*4 + 120 = 620 -> short of tier 1
+    await expect(sim.borrow(borrowerState(BOB, base), true, 400n, 1000n, DUE)).rejects.toThrow(
       /score below required tier/,
     );
 
-    const sim2 = (await freshIssuer()).sim;
-    await new AttestationIssuer(ISSUER, (l) => sim2.issueAttestation(ISSUER, l).then(() => undefined)).issuePersona(
-      "bob",
-      BOB,
-      EXPIRY,
+    // The oracle re-attests a richer external history: 620 - 120 + 300 = 800.
+    const raised = await issuer.attestCrossChain(BOB, 300n, EXPIRY);
+    await sim.borrow(borrowerState(BOB, { ...base, crossChain: raised }), true, 400n, 1000n, DUE);
+    expect(sim.ledger.loans.lookup(sim.nullifier(BOB)).tier).toBe(1n);
+  });
+
+  it("refuses to mint a cross-chain contribution above the cap", async () => {
+    const { issuer } = await freshIssuer();
+    await expect(issuer.attestCrossChain(BOB, MAX_CROSS_CHAIN_SCORE + 1n, EXPIRY)).rejects.toThrow(
+      /exceeds the cap/,
     );
-    await sim2.borrow(borrowerState(BOB, base, 300n), true, 400n, 1000n, DUE);
-    expect(sim2.ledger.loans.lookup(sim2.nullifier(BOB)).tier).toBe(1n);
+    await expect(issuer.attestCrossChain(BOB, MAX_CROSS_CHAIN_SCORE, EXPIRY)).resolves.toMatchObject({
+      field: "crossChain",
+      value: MAX_CROSS_CHAIN_SCORE,
+    });
   });
 
   it("an attestation the issuer never signed cannot be used", async () => {
     const { sim } = await freshIssuer();
     // no issue call — borrower fabricates the values
-    const ps = borrowerState(
-      ALICE,
-      { bank: { value: 999n, expiry: EXPIRY }, salary: { value: 999n, expiry: EXPIRY }, repay: { value: 999n, expiry: EXPIRY } },
-      0n,
-    );
+    const ps = borrowerState(ALICE, {
+      bank: { value: 999n, expiry: EXPIRY },
+      salary: { value: 999n, expiry: EXPIRY },
+      repay: { value: 999n, expiry: EXPIRY },
+    });
     await expect(sim.borrow(ps, true, 100n, 1000n, DUE)).rejects.toThrow(/attestation leaf not found/);
   });
 
@@ -100,7 +115,7 @@ describe("keypair helpers", () => {
   });
 
   it("demo persona bands are the documented values", () => {
-    expect(DEMO_PERSONAS.alice).toEqual({ bank: 200n, salary: 150n, repay: 90n });
-    expect(DEMO_PERSONAS.bob).toEqual({ bank: 100n, salary: 80n, repay: 15n });
+    expect(DEMO_PERSONAS.alice).toEqual({ bank: 200n, salary: 150n, repay: 90n, crossChain: 0n });
+    expect(DEMO_PERSONAS.bob).toEqual({ bank: 100n, salary: 80n, repay: 15n, crossChain: 120n });
   });
 });

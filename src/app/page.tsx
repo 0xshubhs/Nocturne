@@ -1,23 +1,49 @@
-import { WalletPanel } from "@/components/WalletPanel";
+"use client";
+
+import { useCallback, useSyncExternalStore } from "react";
+import { AppShell, type Tab } from "@/components/AppShell";
+import { BorrowerDashboard } from "@/components/BorrowerDashboard";
+import { ExplorerPanel } from "@/components/ExplorerPanel";
+import { PoolView } from "@/components/PoolView";
+import { DemoProvider } from "@/lib/demo/use-demo";
+
+const TABS: Tab[] = ["borrow", "pool", "explorer"];
+
+function isTab(v: string): v is Tab {
+  return (TABS as string[]).includes(v);
+}
+
+// The tab lives in the URL hash so a view can be linked to — handy when
+// walking someone through the demo. It is external state (the address bar), so
+// `useSyncExternalStore` is the right way to read it without a hydration
+// mismatch.
+function subscribeHash(onChange: () => void): () => void {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+function hashSnapshot(): Tab {
+  const raw = window.location.hash.replace(/^#/, "");
+  return isTab(raw) ? raw : "borrow";
+}
+
+function serverSnapshot(): Tab {
+  return "borrow";
+}
 
 export default function Home() {
+  const tab = useSyncExternalStore(subscribeHash, hashSnapshot, serverSnapshot);
+  const setTab = useCallback((next: Tab) => {
+    window.location.hash = next;
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 dark:bg-black font-sans p-8">
-      <main className="flex flex-col items-center gap-8 w-full max-w-md">
-        <div className="text-center sm:text-left w-full">
-          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            defi1
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            ZK under-collateralized lending on Midnight. Prove your credit score
-            without revealing your data, attestations, or linked wallets.
-          </p>
-        </div>
-        <WalletPanel />
-        <p className="text-xs text-zinc-500">
-          Borrower dashboard and pool view land next (plan.md §6).
-        </p>
-      </main>
-    </div>
+    <DemoProvider>
+      <AppShell tab={tab} onTab={setTab}>
+        {tab === "borrow" && <BorrowerDashboard />}
+        {tab === "pool" && <PoolView />}
+        {tab === "explorer" && <ExplorerPanel />}
+      </AppShell>
+    </DemoProvider>
   );
 }

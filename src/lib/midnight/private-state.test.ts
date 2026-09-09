@@ -84,22 +84,77 @@ describe("EncryptedPrivateStateStore", () => {
 });
 
 describe("LendingStateManager", () => {
-  it("imports attestations and cross-chain score into encrypted state", async () => {
-    const storage = memStorage();
+  async function manager() {
     const key = await storeKeyFromBytes(new Uint8Array(32).fill(5));
-    const mgr = LendingStateManager.withKey(key, "mn_addr_test", storage);
+    return LendingStateManager.withKey(key, "mn_addr_test", memStorage());
+  }
+
+  it("imports every attestation field into encrypted state", async () => {
+    const mgr = await manager();
 
     await mgr.save(emptyBorrowerState(new Uint8Array(32).fill(11)));
     await mgr.importAttestation("bank", { value: 200n, expiry: 9_999_999n });
     await mgr.importAttestation("salary", { value: 150n, expiry: 9_999_999n });
-    const final = await mgr.setCrossChainScore(40n);
+    const final = await mgr.importAttestation("crossChain", { value: 40n, expiry: 9_999_999n });
 
     expect(final.bank?.value).toBe(200n);
     expect(final.salary?.value).toBe(150n);
-    expect(final.crossChainScore).toBe(40n);
+    expect(final.crossChain?.value).toBe(40n);
 
     const reloaded = await mgr.load();
     expect(reloaded?.bank?.value).toBe(200n);
     expect(reloaded?.callerSecret).toBeInstanceOf(Uint8Array);
+  });
+
+  it("keeps linked wallets separate from the mirrored borrower state", async () => {
+    const mgr = await manager();
+    await mgr.save(emptyBorrowerState(new Uint8Array(32).fill(11)));
+
+    expect(await mgr.linkedWallets()).toEqual([]);
+
+    const wallet = {
+      chain: "ethereum" as const,
+      address: "0xAbC0000000000000000000000000000000000001",
+      commitment: "ab".repeat(32),
+      derivedScore: 120n,
+      linkedAt: 1_700_000_000,
+    };
+    await mgr.addLinkedWallet(wallet);
+    expect(await mgr.linkedWallets()).toEqual([wallet]);
+
+    // Nothing about the linked wallet leaks into the circuit-facing state.
+    const state = await mgr.load();
+    expect(Object.keys(state ?? {})).not.toContain("linkedWallets");
+  });
+
+  it("re-linking the same address replaces rather than duplicates", async () => {
+    const mgr = await manager();
+    const base = {
+      chain: "ethereum" as const,
+      address: "0xAbC0000000000000000000000000000000000001",
+      commitment: "ab".repeat(32),
+      derivedScore: 120n,
+      linkedAt: 1_700_000_000,
+    };
+    await mgr.addLinkedWallet(base);
+    // same address, different case, richer history
+    await mgr.addLinkedWallet({ ...base, address: base.address.toLowerCase(), derivedScore: 200n });
+
+    const all = await mgr.linkedWallets();
+    expect(all).toHaveLength(1);
+    expect(all[0].derivedScore).toBe(200n);
+  });
+
+  it("removes a linked wallet", async () => {
+    const mgr = await manager();
+    const wallet = {
+      chain: "base" as const,
+      address: "0xAbC0000000000000000000000000000000000002",
+      commitment: "cd".repeat(32),
+      derivedScore: 60n,
+      linkedAt: 1_700_000_000,
+    };
+    await mgr.addLinkedWallet(wallet);
+    expect(await mgr.removeLinkedWallet("base", wallet.address.toUpperCase())).toEqual([]);
   });
 });
