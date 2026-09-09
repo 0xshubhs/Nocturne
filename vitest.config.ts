@@ -10,5 +10,8 @@ export default defineConfig({
     // WebCrypto (crypto.subtle) is on the Node global; no DOM needed.
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // `prove-live` needs a running proof server (Docker). Run it deliberately
+    // with `npm run test:prove` rather than surprising `npm test` with it.
+    exclude: ["**/node_modules/**", "src/lib/midnight/prove-live.test.ts"],
   },
 });

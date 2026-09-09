@@ -51,11 +51,12 @@ import {
 } from "@midnightntwrk/ledger-v9";
 import { deserializeCompactContractState } from "@midnight-ntwrk/midnight-js-utils";
 import type { ContractState as CompactContractState } from "@midnight-ntwrk/compact-runtime";
+import { ChargedState } from "@midnightntwrk/onchain-runtime-v4";
 import { ZK_ASSET_BASE_PATH, type ServiceConfig } from "./config";
 import { HttpZKConfigProvider } from "./zk-config";
 import { queryContractState } from "./providers";
 import type { BorrowerPrivateState } from "./lending";
-import type { AssembledCall } from "./submit";
+import type { AssembledCall, AssembledCallWithState } from "./submit";
 
 /** What a deploy produces, before it is proven and submitted. */
 export type AssembledDeploy = AssembledCall & {
@@ -82,7 +83,7 @@ export interface TxAssembler {
     circuitId: CircuitId,
     args: readonly unknown[],
     privateState: BorrowerPrivateState,
-  ): Promise<AssembledCall>;
+  ): Promise<AssembledCallWithState<CompactContractState>>;
 
   deploy(
     issuerSecret: Uint8Array,
@@ -232,7 +233,7 @@ export class MidnightTxAssembler implements TxAssembler {
     circuitId: CircuitId,
     args: readonly unknown[],
     privateState: BorrowerPrivateState,
-  ): Promise<AssembledCall> {
+  ): Promise<AssembledCallWithState<CompactContractState>> {
     const onChain = await queryContractState(this.config, contractAddress, this.fetchImpl);
     if (!onChain) throw new ContractNotDeployedError(contractAddress);
 
@@ -273,9 +274,18 @@ export class MidnightTxAssembler implements TxAssembler {
 
     const unprovenTx = data.private.unprovenTx;
 
+    // The state this call would leave behind. Only the ledger *data* changes;
+    // the operations — and so the verifier keys a later call's key location
+    // hashes — carry over from the state it ran against.
+    const nextContractState = deserializeCompactContractState(fromHex(onChain.data), {
+      caller: "defi1:MidnightTxAssembler.call:next",
+    });
+    nextContractState.data = new ChargedState(data.public.nextContractState);
+
     return {
       circuitId,
       contractAddress,
+      nextContractState,
       prove: (provider) => this.proveAndSerialize(unprovenTx, provider),
       serializeUnproven: () => toHex(unprovenTx.serialize()),
     };

@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "sync:zk": "mkdir -p public/zk/lending && cp -R contracts/src/managed/lending/keys contracts/src/managed/lending/zkir public/zk/lending/"
+    "sync:zk": "mkdir -p public/zk/lending && cp -R contracts/src/managed/lending/keys contracts/src/managed/lending/zkir public/zk/lending/",
+    "proof-server:up": "docker run -d --rm --name defi1-proof-server -p 6300:6300 midnightnetwork/proof-server:latest",
+    "proof-server:down": "docker rm -f defi1-proof-server",
+    "test:prove": "vitest run src/lib/midnight/prove-live.test.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.19.0",

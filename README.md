@@ -157,12 +157,41 @@ await client.depositLiquidity(1_000_000n, onProgress);
 get wrong: that the ZK artifacts are being served, and that the wallet is on the
 network the app targets.
 
-**Not yet run against a live network.** Assembly is exercised against the real
-compiled contract in `tx-assembler.test.ts` — a real deployment, a real
-`depositLiquidity` call, real transcript partitioning — but nothing has been
-proven by a wallet, submitted, or confirmed on preprod. Proving is the one step
-a test cannot stand in for: the ledger's WASM traps rather than throwing when
-handed an invalid proof, so the tests stop deliberately short of it.
+### Proving, verified
+
+The wallet is the prover a user has, and there is no headless wallet for this
+stack — so `proof-server-provider.ts` supplies the other one: a `ProvingProvider`
+backed by a self-hosted `midnight-proof-server`. Same interface, so
+`AssembledCall.prove` takes either. It doubles as the path for scripted or
+server-side flows where no wallet exists.
+
+```bash
+npm run proof-server:up     # docker, ~105MB image
+npm run test:prove          # assemble real transactions and prove them
+npm run proof-server:down
+```
+
+That suite assembles a real deployment, walks the contract forward through four
+`issueAttestation` calls and a `depositLiquidity`, then proves a real `borrow`:
+
+| circuit | prover key | proving time |
+|---|---|---|
+| `depositLiquidity` | 74KB | ~0.3s |
+| `borrow` | 19MB | **12.9s** → 5.4KB proven transaction |
+
+`borrow` is the one that matters: four Merkle-path checks, the score computed
+over private data, and a single disclosed bit about it. Thirteen seconds is
+comfortably inside what a live demo can carry.
+
+Proof server `7.0.0-rc.1` works against `ledger-v9` — the version numbers look
+unrelated but it fetches `zswap/9/...` parameters, so the generations match.
+
+**Still not submitted to a network.** Assembly and proving are verified against
+real components. Balancing, submission and confirmation are not: they need a
+funded wallet in a browser, because no headless wallet exists for this stack
+(`@midnight-ntwrk/wallet` tops out at 5.0.0 and still depends on `zswap@4.0.0`,
+the old separate-zswap architecture). The remaining risk is entirely in that
+last hop.
 
 ### Demo mode (`src/lib/demo/`)
 
@@ -243,9 +272,9 @@ prover.
 
 ## Roadmap
 
-1. Deploy to preprod and drive the live path end to end — the assembler is
-   written and tested offline, but proving, balancing and submission have never
-   run against a real wallet and node.
+1. Deploy to preprod and submit — assembly and proving are verified, but
+   balancing, submission and confirmation have never run against a real wallet
+   and node.
 2. Enforce interest on-chain: `repay` currently requires `amount >= principal`,
    not principal + accrued interest.
 3. Issuer signatures per leaf, and more than one issuer.

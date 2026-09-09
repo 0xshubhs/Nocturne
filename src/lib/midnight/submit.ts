@@ -47,6 +47,20 @@ export type AssembledCall = {
   serializeUnproven(): string;
 };
 
+/** An assembled call plus the ledger state it would leave behind. */
+export type AssembledCallWithState<S = unknown> = AssembledCall & {
+  /**
+   * The contract state this call produces, with the deployed operations (and
+   * so the verifier keys) carried over from the state it ran against.
+   *
+   * Useful for chaining several calls before any of them confirms, and for
+   * showing the borrower what their action will do before they pay for a proof.
+   * It is a *prediction*: the chain decides, and a competing transaction can
+   * land first.
+   */
+  nextContractState: S;
+};
+
 /**
  * Run one contract call to completion, reporting progress.
  *

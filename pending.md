@@ -123,9 +123,24 @@ green (123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
   the two things that are ours to get wrong (artifacts served, wallet on the
   right network). The assembler is imported lazily, so demo mode fetches no WASM
   — verified in a browser: zero `.wasm` requests on the demo path.
-- [ ] **Run it against a live network.** Everything above is verified offline.
-  Nothing has yet been deployed to preprod and driven end to end with a real
-  wallet, a real proof and real DUST. That is the remaining unknown.
+- [x] **Proving verified for real.** `src/lib/midnight/proof-server-provider.ts`
+  is a `ProvingProvider` backed by a self-hosted `midnight-proof-server`, so the
+  most expensive step no longer depends on a human clicking through a browser
+  extension. `npm run proof-server:up && npm run test:prove` assembles real
+  transactions and proves them:
+  - `depositLiquidity` — ~0.3s
+  - **`borrow` — 12.9s, 5.4KB proven transaction.** This is the number that
+    decides whether a live demo is viable, and it is fine. `borrow` verifies
+    four Merkle paths and computes the score over private data; its prover key
+    is 19MB against 74KB for `depositLiquidity`.
+  - Proof server `7.0.0-rc.1` works with our `ledger-v9` — it fetches
+    `zswap/9/...` parameters, so the generations line up despite the version
+    numbers looking unrelated.
+- [ ] **Submit to a live network.** Assembly and proving are verified; balancing,
+  submission and confirmation are not. Those need the browser wallet: there is
+  no headless wallet for this stack (`@midnight-ntwrk/wallet` tops out at 5.0.0
+  and still depends on `zswap@4.0.0`, the old separate-zswap architecture),
+  so it needs tNIGHT, generated DUST, and a human approving in the extension.
 
 ## App / infra
 - [x] Next 16 app builds, `tsc --noEmit` clean, vitest wired
@@ -181,12 +196,11 @@ green (123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
 - [ ] Testnet faucet + DUST availability for demo accounts
 
 ## Known gaps, stated plainly
-- **The live path has never touched a network.** Assembly is exercised against
-  the real compiled contract, and every step after it is the connector API's
-  own, but no transaction has been proven by a wallet, balanced, submitted or
-  confirmed. Proving in particular is unverified: the ledger's WASM traps rather
-  than throwing when handed an invalid proof, so a fake prover cannot stand in
-  for a real one, and the tests deliberately stop short of it.
+- **Nothing has been submitted to a network.** Assembly and proving are both
+  verified against real components — the compiled contract and a real proof
+  server. What has never run is balancing, submission and confirmation, which
+  require a funded wallet in a browser. The remaining risk sits entirely in that
+  last hop.
 - Building the app now requires the contract to be compiled first
   (`npm run compact`), because the assembler imports the generated bindings.
   `npm run sync:zk` is still needed to serve the keys.
