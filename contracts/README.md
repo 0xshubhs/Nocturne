@@ -4,42 +4,64 @@ Core Compact contract for the ZK under-collateralized lending pool.
 
 ```
 src/
-  lending.compact   core contract (ledger state + scoring + borrow/repay/liquidate)
+  lending.compact   core contract
   witnesses.ts      private state shape + witness implementations
-  score.ts          TS reference for computeScore (parity target)
+  score.ts          TS reference for the score arithmetic (parity target)
 test/               (todo) contract + parity tests
 ```
 
 ## Build
 
-Needs the Midnight Compact toolchain (`compactc`) — not yet installed on this
-machine.
+Needs the Midnight Compact toolchain — **not installed on this machine yet**, so
+nothing here is compiled or tested.
 
 ```bash
-# install the compiler (see Midnight docs for the current channel)
-npm i -D @midnight-ntwrk/compact
+curl --proto '=https' --tlsv1.2 -sSf \
+  https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
+source $HOME/.local/bin/env
 
-# compile the contract -> ./managed/lending
-compactc src/lending.compact managed/lending
+compact compile src/lending.compact src/managed/lending
 ```
 
-The compiler emits a typed TS module. Wire `witnesses.ts` into its witness
-object and call circuits from the dApp (plan.md §3, §6).
+Target: Compact **>= 0.23**, compact-runtime 0.16.x, Node >= 22, proof server
+`midnightntwrk/proof-server:8.0.3`.
 
 ## Contract shape
 
-- **Public ledger**: `poolLiquidity`, `tierRules` (2 tiers), `loanCommitments`,
-  `usedNullifiers`, `loanCount`, `issuerPubKey`.
-- **Private witnesses**: borrower identity secret, held attestations,
-  cross-chain score, per-loan salt, collateral.
+- **Public ledger**: `issuerPk` (sealed), `attestationRoot` (HistoricMerkleTree),
+  `poolLiquidity`, `tier0`/`tier1`, `loans` (keyed by nullifier), `activeNullifiers`,
+  `loanCount`, `defaulters`.
+- **Private witnesses**: `callerSecret`, three attestations `(value, expiry, Merkle
+  path)`, `crossChainScore`.
+- **Trust anchor**: the mock issuer calls `issueAttestation(leaf)`; a borrower
+  proves each attestation leaf is in `attestationRoot` via a witness Merkle path,
+  and that the leaf binds to the claimed `(value, expiry, subject)`.
 - **Disclosure surface**:
-  - `borrow` reveals a loan commitment, a nullifier, the tier, the amount — and
-    the boolean `score >= tier`. Never the borrower, collateral, or score.
-  - `liquidate` is the only circuit that reveals an identity, and reveals
-    nothing else.
+  - `borrow` → nullifier, tier, principal, collateral, and `score >= tier`
+    (boolean). Never the score, the raw attestations, or an identity.
+  - `liquidate` → the defaulter's nullifier only. Nothing else.
 
-## Status
+## Applied from ../../REVIEW.md
 
-See `../pending.md` → Core contract. Not compiled or tested yet — no toolchain.
-Syntax targets Compact ~0.15 and may need surface adjustments for the installed
-compiler.
+| Item | Done |
+|---|---|
+| S1 pragma 0.15 → **>= 0.23** | ✅ |
+| S2 struct fields comma-separated | ✅ |
+| S5 explicit `as Uint<64>` on ledger arithmetic | ✅ |
+| S7 no loops / no `return` in loops (attestations are 3 explicit checks) | ✅ |
+| S8 witness declarations grouped up top | ✅ |
+| C1 attestations validated against issuer Merkle root | ✅ |
+| C2 domain-separated `makeNullifier` / `makeSubjectId` / `deriveIssuerPk` | ✅ |
+| C3 loans keyed by nullifier (pseudonymous); amounts intentionally public per pitch | ✅ |
+
+## Still open (need the compiler)
+
+- `path.leaf` accessor + `merkleTreePathRoot` arity — confirm against runtime
+  (fallback forms noted in `verifiedValue`).
+- No block-time getter on Midnight: `borrow` takes `dueTime` and only asserts it
+  is in the future (`blockTimeLt`). A relative term cap needs an oracle/keeper.
+- `?:` on struct values (`useTier1 ? tier1 : tier0`) — verify Compact allows it;
+  else branch explicitly.
+- Contract tests + `score.ts` ↔ circuit parity tests.
+
+See `../pending.md` → Core contract.

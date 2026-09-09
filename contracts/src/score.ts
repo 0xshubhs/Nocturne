@@ -1,36 +1,28 @@
-// defi1 — TS reference implementation of computeScore.
+// defi1 — TS reference for the credit score.
 //
-// MUST stay in lockstep with `circuit computeScore` in lending.compact.
-// Parity-tested in contracts/test/score.parity.test.ts — if you change one,
-// change both and re-run the parity suite.
+// MUST stay in lockstep with the score arithmetic in `borrow` (lending.compact):
+//   score = bank*2 + salary*3 + repay*4 + crossChain
+// Parity-tested in contracts/test/score.parity.test.ts.
 
 import type { Attestation } from "./witnesses";
 
-const ZERO32 = new Uint8Array(32);
-
-function isZero(b: Uint8Array): boolean {
-  return b.length === ZERO32.length && b.every((x) => x === 0);
-}
-
-const FIELD_WEIGHT: Record<string, bigint> = {
-  "0": 2n, // bank balance band
-  "1": 3n, // salary band
-  "2": 4n, // repayment history
-};
+const WEIGHT = { bank: 2n, salary: 3n, repay: 4n } as const;
 
 export function computeScore(
-  attestations: Attestation[],
+  bank: Attestation | undefined,
+  salary: Attestation | undefined,
+  repay: Attestation | undefined,
   crossChainScore: bigint,
   now: bigint,
 ): bigint {
-  let score = 0n;
-  for (const a of attestations) {
-    if (isZero(a.issuer)) continue;
-    if (a.expiry <= now) continue;
-    const w = FIELD_WEIGHT[a.field.toString()] ?? 0n;
-    score += a.value * w;
-  }
-  return score + crossChainScore;
+  const v = (a: Attestation | undefined): bigint =>
+    a && a.expiry > now ? a.value : 0n;
+  return (
+    v(bank) * WEIGHT.bank +
+    v(salary) * WEIGHT.salary +
+    v(repay) * WEIGHT.repay +
+    crossChainScore
+  );
 }
 
 // Tier table mirrors the constructor in lending.compact.
@@ -43,4 +35,9 @@ export function tierFor(score: bigint): 0 | 1 | null {
   if (score >= TIER_RULES[1].minScore) return 1;
   if (score >= TIER_RULES[0].minScore) return 0;
   return null;
+}
+
+// amount / collateral <= maxLtvBps / 10000
+export function withinLtv(amount: bigint, collateral: bigint, tier: 0 | 1): boolean {
+  return amount * 10000n <= collateral * TIER_RULES[tier].maxLtvBps;
 }

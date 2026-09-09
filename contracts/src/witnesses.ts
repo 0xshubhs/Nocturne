@@ -1,74 +1,86 @@
 // defi1 — private state + witness implementations for lending.compact
 //
 // The Compact compiler generates a typed contract module from lending.compact.
-// These functions supply the private (witness) inputs at proving time. They run
-// locally in the borrower's client and never leave the device.
+// These callbacks supply the private (witness) inputs at proving time. They run
+// locally in the caller's client and never leave the device.
+//
+// Types (`WitnessContext`, `MerkleTreePath`) come from the generated module /
+// @midnight-ntwrk/compact-runtime once the contract is compiled — imported here
+// as `any` placeholders until then.
 
+type WitnessContext<PS> = { privateState: PS; ledger: any };
+type MerkleTreePath = unknown;
+
+// One raw attestation the caller holds locally.
 export type Attestation = {
-  field: bigint; // 0 = bank balance band, 1 = salary band, 2 = repayment history
-  value: bigint; // bucketed value
+  value: bigint; // bucketed value, never the raw figure
   expiry: bigint; // unix seconds
-  issuer: Uint8Array; // 32 bytes; zero => empty slot
 };
 
 // Everything the borrower stores locally, encrypted at rest, keyed to the wallet.
 export type DefiPrivateState = {
-  borrowerSecretKey: Uint8Array; // 32 bytes, long-lived identity secret
-  attestations: Attestation[]; // held attestations (padded to 4 in-circuit)
+  callerSecret: Uint8Array; // 32 bytes, long-lived identity secret
+  bank?: Attestation;
+  salary?: Attestation;
+  repay?: Attestation;
   crossChainScore: bigint; // score contributed by verified external wallets
-  loanSalt: Uint8Array; // 32 bytes, per-loan randomness
-  activeLoan?: {
-    amount: bigint;
-    collateral: bigint;
-    salt: Uint8Array;
-  };
 };
 
-const ZERO32 = new Uint8Array(32);
+const ZERO_ATT: Attestation = { value: 0n, expiry: 0n };
 
-function padAttestations(atts: Attestation[]): Attestation[] {
-  const out = atts.slice(0, 4);
-  while (out.length < 4) {
-    out.push({ field: 0n, value: 0n, expiry: 0n, issuer: ZERO32 });
-  }
-  return out;
+// domain separators — must match lending.compact
+const DOM = {
+  bank: "defi1:att:bank:v1",
+  salary: "defi1:att:salary:v1",
+  repay: "defi1:att:repay:v1",
+} as const;
+
+// Recompute the leaf the issuer committed, then ask the on-chain attestation
+// tree for its Merkle path. `leafFor` must mirror `attestationLeaf` in the
+// contract — wired up once the generated `pureCircuits` are available.
+function pathFor(
+  ctx: WitnessContext<DefiPrivateState>,
+  _domain: string,
+  _att: Attestation,
+): MerkleTreePath {
+  // return ctx.ledger.attestationRoot.findPathForLeaf(leafFor(_domain, _att, subjectId));
+  return ctx.ledger.attestationRoot.findPathForLeaf(/* leaf */ undefined);
 }
 
-// Wire these into the generated contract's witness object.
 export const witnesses = {
-  borrowerSecretKey: (ps: DefiPrivateState): [DefiPrivateState, Uint8Array] => [
-    ps,
-    ps.borrowerSecretKey,
-  ],
+  callerSecret: (
+    ctx: WitnessContext<DefiPrivateState>,
+  ): [DefiPrivateState, Uint8Array] => [ctx.privateState, ctx.privateState.callerSecret],
 
-  attestations: (ps: DefiPrivateState): [DefiPrivateState, Attestation[]] => [
-    ps,
-    padAttestations(ps.attestations),
-  ],
+  bankAttestation: (
+    ctx: WitnessContext<DefiPrivateState>,
+  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
+    const a = ctx.privateState.bank ?? ZERO_ATT;
+    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.bank, a)]];
+  },
 
-  crossChainScore: (ps: DefiPrivateState): [DefiPrivateState, bigint] => [
-    ps,
-    ps.crossChainScore,
-  ],
+  salaryAttestation: (
+    ctx: WitnessContext<DefiPrivateState>,
+  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
+    const a = ctx.privateState.salary ?? ZERO_ATT;
+    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.salary, a)]];
+  },
 
-  loanSalt: (ps: DefiPrivateState): [DefiPrivateState, Uint8Array] => [
-    ps,
-    ps.activeLoan?.salt ?? ps.loanSalt,
-  ],
+  repayAttestation: (
+    ctx: WitnessContext<DefiPrivateState>,
+  ): [DefiPrivateState, [bigint, bigint, MerkleTreePath]] => {
+    const a = ctx.privateState.repay ?? ZERO_ATT;
+    return [ctx.privateState, [a.value, a.expiry, pathFor(ctx, DOM.repay, a)]];
+  },
 
-  witnessCollateral: (ps: DefiPrivateState): [DefiPrivateState, bigint] => [
-    ps,
-    ps.activeLoan?.collateral ?? 0n,
-  ],
+  crossChainScore: (
+    ctx: WitnessContext<DefiPrivateState>,
+  ): [DefiPrivateState, bigint] => [ctx.privateState, ctx.privateState.crossChainScore],
 };
+
+export function emptyPrivateState(secretKey: Uint8Array): DefiPrivateState {
+  return { callerSecret: secretKey, crossChainScore: 0n };
+}
 
 // TODO(wallet): load/persist DefiPrivateState through the Midnight private state
 // provider once the wallet connector lands (plan.md §3).
-export function emptyPrivateState(secretKey: Uint8Array): DefiPrivateState {
-  return {
-    borrowerSecretKey: secretKey,
-    attestations: [],
-    crossChainScore: 0n,
-    loanSalt: ZERO32,
-  };
-}

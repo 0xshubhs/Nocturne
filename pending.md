@@ -5,27 +5,31 @@ Working checklist. Not committed. Move items to done as they land.
 ## Now
 - [x] Scaffold `contracts/` with a Compact starter contract
 - [x] Define ledger state struct + tier rules constant (2 tiers)
-- [~] Scoring model drafted (fields 0/1/2, weights 2/3/4 + crossChain) — needs sign-off
-- [ ] Install `compactc` and compile `src/lending.compact`
+- [x] Scoring model: bank x2, salary x3, repay x4, + crossChain (mirrored in score.ts)
+- [x] Reworked to Compact >= 0.23 + applied REVIEW.md S1/S2/S5/S7/S8, C1/C2/C3
+- [ ] Install the `compact` compiler and compile `src/lending.compact`
 
 ## Core contract
-- [~] `computeScore` circuit — drafted in `lending.compact`, uncompiled
-- [~] `borrow` circuit (score gate + LTV check + nullifier) — drafted, uncompiled
-- [~] `repay` circuit — drafted, uncompiled
-- [~] `liquidate` circuit — drafted; confirm it discloses *only* the defaulter once compiling
-- [x] `depositLiquidity` / `withdrawLiquidity` circuits — drafted
-- [ ] Resolve syntax against installed compiler (assert form, ledger ADT methods, disclose)
-- [ ] `witnessCollateral` / `loanSalt` re-derivation in repay — review commitment binding
+- [~] `borrow` — score gate + LTV + nullifier + attestation-root check — written, uncompiled
+- [~] `repay` — written, uncompiled
+- [~] `liquidate` — written; reveals only the defaulter nullifier
+- [~] `issueAttestation` — mock issuer inserts a leaf into `attestationRoot`
+- [x] `depositLiquidity` / `withdrawLiquidity`
+- [ ] Confirm `path.leaf` accessor + `merkleTreePathRoot` arity vs runtime
+- [ ] Confirm `?:` returning a struct (`useTier1 ? tier1 : tier0`); else branch explicitly
+- [ ] Term cap for `dueTime` — no block-time getter; needs a keeper/oracle
 - [ ] Contract test suite (thresholds, LTV boundary, double-borrow, disclosure)
-- [ ] Parity test: `score.ts` vs `computeScore` circuit
+- [ ] Parity test: `score.ts` vs the circuit's score arithmetic
 
 ## Attestation issuer
-- [ ] Signing service / script
-- [ ] Issuer keypair; bake pubkey into contract
+- [x] Model chosen: issuer maintains `attestationRoot`, calls `issueAttestation(leaf)`
+- [ ] Issuer keypair + `deriveIssuerPk` wiring; pass secret to constructor at deploy
+- [ ] Service/script that builds leaves and submits `issueAttestation`
 - [ ] CLI to mint attestations for demo personas (Alice strong, Bob thin)
+- [ ] Client-side `pathFor` in witnesses.ts — recompute leaf, query tree for path
 
 ## Scoring engine
-- [ ] TS reference `computeScore` matching the circuit
+- [x] TS reference `score.ts` mirroring the circuit arithmetic
 - [ ] Parity tests (TS output == circuit output) per persona
 
 ## Wallet + infra

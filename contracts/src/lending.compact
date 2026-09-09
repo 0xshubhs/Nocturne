@@ -1,11 +1,19 @@
 // defi1 — ZK under-collateralized lending pool
 //
-// Targets Compact ~0.15. If the installed `compactc` differs, the likely
-// adjustments are: assert syntax (`assert cond "msg"` vs `assert(cond, "msg")`),
-// ledger ADT method names, and the disclose() wrapper. Keep the shape; adapt
-// the surface.
+// Compact >= 0.23 (compact-runtime 0.16.x). Patterns cross-checked against
+// Midnight-Skills templates/locker-dapp, templates/private-party-dapp,
+// .agents/skills/compact and .agents/skills/example-zk-loan-application.
+//
+// Privacy boundary
+//   private (witness): borrower identity secret, raw attestation values,
+//                      cross-chain score, Merkle paths
+//   public  (ledger) : pool liquidity, tier rules, issuer attestation root,
+//                      loan records keyed by a pseudonymous nullifier,
+//                      defaulters (revealed only on liquidation)
+//   disclosed        : nullifier, tier, principal, collateral, and the single
+//                      boolean `score >= tier`. Never the score or the raw data.
 
-pragma language_version 0.15;
+pragma language_version >= 0.23;
 
 import CompactStandardLibrary;
 
@@ -13,175 +21,233 @@ import CompactStandardLibrary;
 // Types
 // ---------------------------------------------------------------------------
 
-// A signed attestation from the mock issuer. `field` identifies what is being
-// attested (0 = bank balance band, 1 = salary band, 2 = repayment history score).
-// `value` is the bucketed value, never the raw figure.
-struct Attestation {
-  field: Uint<8>;
-  value: Uint<64>;
-  expiry: Uint<64>;
-  issuer: Bytes<32>;
+struct TierRule {
+  minScore: Uint<64>,
+  maxLtvBps: Uint<64>,   // basis points, 10000 = 100%
+  aprBps: Uint<64>
 }
 
-struct TierRule {
-  minScore: Uint<64>;   // score band required to borrow at this tier
-  maxLtvBps: Uint<64>;  // max loan-to-value in basis points (10000 = 100%)
-  aprBps: Uint<64>;
+struct LoanRecord {
+  tier: Uint<8>,
+  principal: Uint<64>,
+  collateral: Uint<64>,
+  dueTime: Uint<64>,     // unix seconds; liquidatable once block time >= this
+  active: Boolean
 }
 
 // ---------------------------------------------------------------------------
 // Public (ledger) state
 // ---------------------------------------------------------------------------
 
+// Domain-hashed public key of the mock attestation issuer. Set once at deploy.
+export sealed ledger issuerPk: Bytes<32>;
+
+// Issuer-maintained tree of attestation-commitment leaves. HistoricMerkleTree so
+// a borrower's proof stays valid even if the issuer adds more attestations
+// between proof generation and submission.
+export ledger attestationRoot: HistoricMerkleTree<10, Bytes<32>>;
+
 export ledger poolLiquidity: Uint<64>;
-export ledger issuerPubKey: Bytes<32>;
+export ledger tier0: TierRule;
+export ledger tier1: TierRule;
 
-// tierId -> rule. MVP uses tiers 0 and 1.
-export ledger tierRules: Map<Uint<8>, TierRule>;
-
-// Hash commitments of outstanding loans. The pool never sees borrower, amount,
-// or collateral in the clear — only that a commitment exists.
-export ledger loanCommitments: Set<Bytes<32>>;
-
-// One active loan per identity, across every call to this pool.
-export ledger usedNullifiers: Set<Bytes<32>>;
-
+// nullifier -> loan. The nullifier is a pseudonymous borrower id: one active
+// loan per identity, and `repay`/`liquidate` act on it without a fresh proof of
+// identity from third parties.
+export ledger loans: Map<Bytes<32>, LoanRecord>;
+export ledger activeNullifiers: Set<Bytes<32>>;
 export ledger loanCount: Counter;
 
+// Populated only by `liquidate` — the one place an identity is revealed.
+export ledger defaulters: Set<Bytes<32>>;
+
 // ---------------------------------------------------------------------------
-// Private (witness) inputs — implemented in contracts/src/witnesses.ts
+// Private (witness) inputs — bodies in contracts/src/witnesses.ts
 // ---------------------------------------------------------------------------
 
-// Borrower's long-lived identity secret. Seeds the nullifier.
-witness borrowerSecretKey(): Bytes<32>;
+// Long-lived identity secret of whoever is calling.
+witness callerSecret(): Bytes<32>;
 
-// Up to 4 attestations the borrower holds locally.
-witness attestations(): Vector<4, Attestation>;
+// Each attestation: (value, expiry, Merkle path proving it was issued).
+witness bankAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
+witness salaryAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
+witness repayAttestation(): [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>];
 
-// Pre-computed commitment to cross-chain history plus the score it contributes.
+// Score contributed by verified external wallets (bounded by the client).
 witness crossChainScore(): Uint<64>;
 
-// Randomness for the loan commitment.
-witness loanSalt(): Bytes<32>;
+// ---------------------------------------------------------------------------
+// Key derivation — every hash carries a unique domain separator
+// ---------------------------------------------------------------------------
+
+pure circuit deriveIssuerPk(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:issuer:v1"), sk]);
+}
+
+// Pseudonymous borrower id used as the loan key + double-borrow guard.
+pure circuit makeNullifier(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:nullifier:v1"), sk]);
+}
+
+// Distinct domain: binds an attestation to a subject without linking to the
+// nullifier.
+pure circuit makeSubjectId(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:subject:v1"), sk]);
+}
+
+// Attestation leaf the issuer commits into `attestationRoot`.
+pure circuit attestationLeaf(
+  fieldTag: Bytes<32>,
+  value: Uint<64>,
+  expiry: Uint<64>,
+  subject: Bytes<32>
+): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>([
+    fieldTag,
+    subject,
+    persistentHash<Uint<64>>(value),
+    persistentHash<Uint<64>>(expiry)
+  ]);
+}
 
 // ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
 
-constructor(issuer: Bytes<32>) {
-  issuerPubKey = issuer;
+constructor(issuerSecret: Bytes<32>) {
+  issuerPk = disclose(deriveIssuerPk(issuerSecret));
   poolLiquidity = 0;
-  // Tier 0: conservative. Tier 1: needs a stronger private score, more leverage.
-  tierRules.insert(0, TierRule { minScore: 500,  maxLtvBps: 8000,  aprBps: 900 });
-  tierRules.insert(1, TierRule { minScore: 750,  maxLtvBps: 15000, aprBps: 1400 });
+  // Tier 0: conservative. Tier 1: stronger private score, more leverage.
+  tier0 = TierRule { minScore: 500,  maxLtvBps: 8000,  aprBps: 900 };
+  tier1 = TierRule { minScore: 750,  maxLtvBps: 15000, aprBps: 1400 };
 }
 
 // ---------------------------------------------------------------------------
-// Scoring — pure, runs entirely in-circuit over witness data
+// Attestation issuance (mock issuer)
 // ---------------------------------------------------------------------------
 
-// Deterministic. MUST stay in lockstep with the TS reference in
-// contracts/src/score.ts (parity-tested).
-circuit computeScore(atts: Vector<4, Attestation>, crossChain: Uint<64>, now: Uint<64>): Uint<64> {
-  let score: Uint<64> = 0;
-  for (const a of atts) {
-    // ignore empty / expired slots
-    if (a.issuer != default<Bytes<32>> && a.expiry > now) {
-      // weight per attestation field
-      if (a.field == 0) { score = score + a.value * 2; }   // bank balance band
-      if (a.field == 1) { score = score + a.value * 3; }   // salary band
-      if (a.field == 2) { score = score + a.value * 4; }   // repayment history
-    }
-  }
-  score = score + crossChain;
-  return score;
+// The issuer publishes an attestation commitment. Callable only by the account
+// whose derived key matches `issuerPk`.
+export circuit issueAttestation(leaf: Bytes<32>): [] {
+  assert(deriveIssuerPk(callerSecret()) == issuerPk, "caller is not the issuer");
+  attestationRoot.insert(disclose(leaf));
 }
 
 // ---------------------------------------------------------------------------
-// Circuits
+// Liquidity
 // ---------------------------------------------------------------------------
 
 export circuit depositLiquidity(amount: Uint<64>): [] {
-  poolLiquidity = poolLiquidity + amount;
+  poolLiquidity = disclose((poolLiquidity + amount) as Uint<64>);
 }
 
 export circuit withdrawLiquidity(amount: Uint<64>): [] {
-  assert(poolLiquidity >= amount, "insufficient pool liquidity");
-  poolLiquidity = poolLiquidity - amount;
+  assert(disclose(amount) <= poolLiquidity, "insufficient pool liquidity");
+  poolLiquidity = (poolLiquidity - amount) as Uint<64>;
 }
 
-// Borrow under-collateralized. The chain learns: a loan commitment, a nullifier,
-// the tier, and the amount drawn from the pool. It does NOT learn the borrower,
-// the collateral, the attestations, or the score — only that score >= tier.
-export circuit borrow(tier: Uint<8>, amount: Uint<64>, collateral: Uint<64>, now: Uint<64>): [] {
-  assert(tierRules.member(tier), "unknown tier");
-  const rule = tierRules.lookup(tier);
+// ---------------------------------------------------------------------------
+// Borrow
+// ---------------------------------------------------------------------------
 
-  // score gate — computed over private data, only the >= result is revealed
-  const score = computeScore(attestations(), crossChainScore(), now);
-  assert(disclose(score >= rule.minScore), "score below tier requirement");
+// Verify one attestation against the issuer root and return its value.
+circuit verifiedValue(
+  fieldTag: Bytes<32>,
+  subject: Bytes<32>,
+  att: [Uint<64>, Uint<64>, MerkleTreePath<10, Bytes<32>>]
+): Uint<64> {
+  const value = att[0];
+  const expiry = att[1];
+  const path = att[2];
+  assert(
+    attestationRoot.checkRoot(merkleTreePathRoot<10, Bytes<32>>(path)),
+    "attestation not issued by the issuer"
+  );
+  // Bind the proven leaf to the claimed (value, expiry, subject) so the prover
+  // can't swap in a different real leaf. If `path.leaf` is not the accessor in
+  // the installed runtime, the equivalent forms are:
+  //   merkleTreePathRoot<10, Bytes<32>>(leaf, path)  // leaf passed separately
+  // or a witness `findPath(expectedLeaf)` that takes the leaf as its argument.
+  assert(
+    path.leaf == attestationLeaf(fieldTag, value, expiry, subject),
+    "attestation path does not match its contents"
+  );
+  assert(!blockTimeGte(disclose(expiry)), "attestation expired");
+  return value;
+}
 
-  // leverage gate: amount <= collateral * maxLtv
-  assert(disclose(amount * 10000 <= collateral * rule.maxLtvBps), "exceeds max LTV for tier");
+export circuit borrow(
+  useTier1: Boolean,
+  amount: Uint<64>,
+  collateral: Uint<64>,
+  dueTime: Uint<64>
+): [] {
+  const secret = callerSecret();
 
-  // liquidity gate
-  assert(poolLiquidity >= amount, "insufficient pool liquidity");
+  const nullifier = disclose(makeNullifier(secret));
+  assert(!activeNullifiers.member(nullifier), "identity already has an active loan");
+  assert(blockTimeLt(disclose(dueTime)), "due time must be in the future");
 
-  // nullifier: one active loan per identity
-  const nullifier = disclose(persistentHash<Bytes<32>>(borrowerSecretKey()));
-  assert(!usedNullifiers.member(nullifier), "identity already has an active loan");
+  // --- score, computed entirely over private data ---
+  const subject = makeSubjectId(secret);
+  const bankV   = verifiedValue(pad(32, "defi1:att:bank:v1"),   subject, bankAttestation());
+  const salaryV = verifiedValue(pad(32, "defi1:att:salary:v1"), subject, salaryAttestation());
+  const repayV  = verifiedValue(pad(32, "defi1:att:repay:v1"),  subject, repayAttestation());
 
-  // loan commitment binds borrower + terms without revealing them
-  const commitment = disclose(persistentHash<Vector<4, Bytes<32>>>([
-    borrowerSecretKey(),
-    loanSalt(),
-    persistentHash<Uint<64>>(amount),
-    persistentHash<Uint<64>>(collateral)
-  ]));
+  // weights: bank x2, salary x3, repayment history x4  (mirror score.ts)
+  const score = (bankV * 2 + salaryV * 3 + repayV * 4 + crossChainScore()) as Uint<64>;
 
-  usedNullifiers.insert(nullifier);
-  loanCommitments.insert(commitment);
-  poolLiquidity = poolLiquidity - amount;
+  const rule = useTier1 ? tier1 : tier0;
+  assert(disclose(score >= rule.minScore), "score below required tier");
+
+  // amount / collateral <= maxLtvBps / 10000
+  assert(
+    disclose((amount * 10000) as Uint<64> <= (collateral * rule.maxLtvBps) as Uint<64>),
+    "exceeds max LTV for tier"
+  );
+  assert(disclose(amount) <= poolLiquidity, "insufficient pool liquidity");
+
+  const tierId = (disclose(useTier1) ? 1 : 0) as Uint<8>;
+  loans.insert(nullifier, LoanRecord {
+    tier: tierId,
+    principal: disclose(amount),
+    collateral: disclose(collateral),
+    dueTime: disclose(dueTime),
+    active: true
+  });
+  activeNullifiers.insert(nullifier);
+  poolLiquidity = (poolLiquidity - amount) as Uint<64>;
   loanCount.increment(1);
 }
 
-// Repay clears the commitment and frees the identity's nullifier.
+// ---------------------------------------------------------------------------
+// Repay
+// ---------------------------------------------------------------------------
+
 export circuit repay(amount: Uint<64>): [] {
-  const nullifier = disclose(persistentHash<Bytes<32>>(borrowerSecretKey()));
-  assert(usedNullifiers.member(nullifier), "no active loan for identity");
+  const nullifier = disclose(makeNullifier(callerSecret()));
+  assert(activeNullifiers.member(nullifier), "no active loan for identity");
+  const loan = loans.lookup(nullifier);
+  assert(disclose(amount) >= loan.principal, "repayment below principal");
 
-  const commitment = disclose(persistentHash<Vector<4, Bytes<32>>>([
-    borrowerSecretKey(),
-    loanSalt(),
-    persistentHash<Uint<64>>(amount),
-    persistentHash<Uint<64>>(witnessCollateral())
-  ]));
-  assert(loanCommitments.member(commitment), "loan commitment not found");
-
-  loanCommitments.remove(commitment);
-  usedNullifiers.remove(nullifier);
-  poolLiquidity = poolLiquidity + amount;
+  loans.remove(nullifier);
+  activeNullifiers.remove(nullifier);
+  poolLiquidity = disclose((poolLiquidity + amount) as Uint<64>);
 }
 
-// Extra witness needed by repay/liquidate to re-derive the commitment.
-witness witnessCollateral(): Uint<64>;
+// ---------------------------------------------------------------------------
+// Liquidate — the only circuit that reveals an identity, and it reveals
+// nothing else
+// ---------------------------------------------------------------------------
 
-// Liquidate a defaulted loan. This is the ONLY circuit that reveals an identity,
-// and it reveals nothing else — not the amount, not the score, not other loans.
-export circuit liquidate(defaulter: Bytes<32>, amount: Uint<64>, collateral: Uint<64>, salt: Bytes<32>): [] {
-  const commitment = persistentHash<Vector<4, Bytes<32>>>([
-    defaulter,
-    salt,
-    persistentHash<Uint<64>>(amount),
-    persistentHash<Uint<64>>(collateral)
-  ]);
-  assert(loanCommitments.member(commitment), "loan commitment not found");
+export circuit liquidate(nullifier: Bytes<32>): [] {
+  assert(activeNullifiers.member(nullifier), "no active loan");
+  const loan = loans.lookup(nullifier);
+  assert(blockTimeGte(loan.dueTime), "loan not yet in default");
 
-  // default condition is enforced by the caller / oracle in the MVP; here we
-  // just settle: seize collateral into the pool, burn the commitment + nullifier.
-  const nullifier = persistentHash<Bytes<32>>(defaulter);
-  loanCommitments.remove(commitment);
-  usedNullifiers.remove(nullifier);
-  poolLiquidity = poolLiquidity + collateral;
-  // `defaulter` is a public argument — the disclosure is intentional and total.
+  // seize collateral into the pool, close the loan, publish the defaulter
+  poolLiquidity = (poolLiquidity + loan.collateral) as Uint<64>;
+  loans.remove(nullifier);
+  activeNullifiers.remove(nullifier);
+  defaulters.insert(nullifier);
 }
