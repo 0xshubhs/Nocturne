@@ -1,4 +1,4 @@
-// defi1 — in-memory contract simulator for tests.
+// Nocturne — in-memory contract simulator for tests.
 //
 // Runs the generated circuit logic (no proof server, no ZK proving) against a
 // local ledger state, rebuilding the circuit context from the latest state

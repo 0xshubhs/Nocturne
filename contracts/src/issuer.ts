@@ -1,4 +1,4 @@
-// defi1 — mock attestation issuer.
+// Nocturne — mock attestation issuer.
 //
 // Stands in for banks / credit bureaus / oracles. The issuer holds a secret,
 // maintains the on-chain `attestationRoot` (a HistoricMerkleTree), and inserts

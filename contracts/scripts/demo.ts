@@ -1,4 +1,4 @@
-// defi1 — the end-to-end demo run (plan.md §7).
+// Nocturne — the end-to-end demo run (plan.md §7).
 //
 //   npm run demo
 //

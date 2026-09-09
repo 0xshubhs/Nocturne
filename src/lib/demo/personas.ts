@@ -1,4 +1,4 @@
-// defi1 — the two demo borrowers (plan.md §7).
+// Nocturne — the two demo borrowers (plan.md §7).
 //
 // The attestation bands are the same numbers `contracts/src/issuer.ts` mints
 // for `DEMO_PERSONAS`, so the browser demo and `npm --prefix contracts run
@@ -48,7 +48,7 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     name: "Alice",
     blurb:
       "Long banking relationship, steady salary, clean repayment record. Reaches the top tier on institutional attestations alone.",
-    secret: "defi1-demo-secret-alice",
+    secret: "nocturne-demo-secret-alice",
     bands: { bank: 200n, salary: 150n, repay: 90n },
   },
   bob: {
@@ -56,7 +56,7 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     name: "Bob",
     blurb:
       "Thin file — newer bank account, smaller salary band, little borrowing history. His on-chain past is the only credit story he has.",
-    secret: "defi1-demo-secret-bob",
+    secret: "nocturne-demo-secret-bob",
     bands: { bank: 100n, salary: 80n, repay: 15n },
     externalWallet: {
       address: BOB_WALLET,

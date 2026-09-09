@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the borrower view: what you hold, what it scores, what you can take.
+// Nocturne — the borrower view: what you hold, what it scores, what you can take.
 
 import { useDemo } from "@/lib/demo/use-demo";
 import { AttestationInbox } from "./AttestationInbox";

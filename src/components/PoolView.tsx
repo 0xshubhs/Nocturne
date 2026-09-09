@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the lender's side (plan.md §6).
+// Nocturne — the lender's side (plan.md §6).
 //
 // A lender sees the pool, the tier rules, and a list of loans keyed by
 // pseudonym. Scores appear only as bands, and only because a tier implies one.

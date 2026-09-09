@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — demo mode state.
+// Nocturne — demo mode state.
 //
 // Holds one `DemoLedger` (what the chain would see) plus each persona's local
 // private state (what only they can see), and exposes the circuit calls as

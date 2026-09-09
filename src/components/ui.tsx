@@ -1,11 +1,12 @@
 "use client";
 
-// defi1 — shared UI primitives.
+// Nocturne — shared UI primitives.
 //
-// One rule runs through all of it: emerald means private (only this device
-// knows), amber means public (the chain knows). If a value is on screen in
-// amber, an observer can read it too. Nothing else is coloured, so those two
-// always carry meaning.
+// One rule runs through all of it: mint means private (only this device knows),
+// amber means public (the chain knows). If a value is on screen in one of those
+// two, it is telling you who can see it. Lavender is the brand — focus rings,
+// the wordmark, a primary action — and never carries meaning. Nothing else is
+// coloured at all.
 
 import type { ReactNode } from "react";
 
@@ -46,18 +47,18 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-2xl border ${TONE_BORDER[tone]} bg-bg-raised/80 backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border ${TONE_BORDER[tone]} bg-bg-raised/70 backdrop-blur-sm shadow-[0_1px_0_0_#ffffff08_inset,0_16px_40px_-24px_#00000080] ${className}`}
     >
       {(title || aside) && (
-        <header className="flex items-start justify-between gap-4 px-5 pt-4 pb-3 border-b border-border/70">
+        <header className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border/60">
           <div className="min-w-0">
-            {title && <h2 className="text-sm font-semibold tracking-tight">{title}</h2>}
-            {subtitle && <p className="text-xs text-fg-dim mt-1 leading-relaxed">{subtitle}</p>}
+            {title && <h2 className="font-display text-[17px] leading-snug">{title}</h2>}
+            {subtitle && <p className="text-xs text-fg-dim mt-1.5 leading-relaxed max-w-prose">{subtitle}</p>}
           </div>
           {aside && <div className="shrink-0">{aside}</div>}
         </header>
       )}
-      <div className="p-5 flex flex-col gap-4">{children}</div>
+      <div className="p-6 flex flex-col gap-4">{children}</div>
     </section>
   );
 }
@@ -67,7 +68,7 @@ export function VisibilityTag({ tone }: { tone: "private" | "public" }) {
   const isPrivate = tone === "private";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.08em] ${
         isPrivate ? "bg-private/10 text-private" : "bg-public/10 text-public"
       }`}
     >
@@ -116,9 +117,9 @@ export function Stat({
   tone?: Tone;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-bg-inset px-4 py-3">
+    <div className="rounded-xl border border-border/70 bg-bg-inset/70 px-4 py-3.5">
       <div className="text-[10px] uppercase tracking-wider text-fg-dim">{label}</div>
-      <div className={`mt-1 text-xl font-mono tnum ${tone === "neutral" ? "text-fg" : TONE_TEXT[tone]}`}>
+      <div className={`mt-1.5 text-[22px] font-mono tnum ${tone === "neutral" ? "text-fg" : TONE_TEXT[tone]}`}>
         {value}
       </div>
       {sub && <div className="mt-0.5 text-xs text-fg-dim">{sub}</div>}
@@ -128,7 +129,7 @@ export function Stat({
 
 export function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: Tone }) {
   const styles: Record<Tone, string> = {
-    neutral: "bg-white/[0.06] text-fg-muted border-border",
+    neutral: "bg-white/[0.05] text-fg-muted border-border",
     private: "bg-private/10 text-private border-private/25",
     public: "bg-public/10 text-public border-public/25",
     danger: "bg-danger/10 text-danger border-danger/30",
@@ -148,7 +149,7 @@ export function Meter({ value, tone = "neutral" }: { value: number; tone?: Tone 
     danger: "bg-danger",
   };
   return (
-    <div className="h-1.5 w-full rounded-full bg-white/[0.07] overflow-hidden">
+    <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
       <div
         className={`h-full rounded-full transition-all duration-700 ease-out ${bar[tone]}`}
         style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
@@ -202,10 +203,10 @@ export function Button({
   full?: boolean;
 }) {
   const styles = {
-    primary: "bg-fg text-bg hover:bg-white disabled:hover:bg-fg",
-    private: "bg-private/15 text-private border border-private/30 hover:bg-private/25",
-    ghost: "border border-border-strong text-fg-muted hover:text-fg hover:border-fg-dim",
-    danger: "border border-danger/40 text-danger hover:bg-danger/10",
+    primary: "bg-accent text-[#0b0c16] hover:brightness-110 font-semibold",
+    private: "bg-private/12 text-private border border-private/25 hover:bg-private/20",
+    ghost: "border border-border-strong text-fg-muted hover:text-fg hover:border-fg-dim hover:bg-bg-hover",
+    danger: "border border-danger/35 text-danger hover:bg-danger/10",
   }[variant];
 
   return (
@@ -214,7 +215,7 @@ export function Button({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${styles} ${
+      className={`h-10 px-5 rounded-full text-sm font-medium transition-all duration-150 disabled:opacity-35 disabled:cursor-not-allowed ${styles} ${
         full ? "w-full" : ""
       }`}
     >
@@ -266,8 +267,8 @@ export function NumberInput({
         max={max}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-10 rounded-lg bg-bg-inset border border-border px-3 pr-14 font-mono tnum text-sm
-                   outline-none focus:border-fg-dim disabled:opacity-50
+        className="w-full h-11 rounded-xl bg-bg-inset border border-border px-3.5 pr-14 font-mono tnum text-sm
+                   outline-none focus:border-accent/60 transition-colors disabled:opacity-50
                    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
       {suffix && (
@@ -291,7 +292,7 @@ export function Segmented<T extends string | number>({
   disabled?: boolean;
 }) {
   return (
-    <div className="inline-flex p-0.5 rounded-lg bg-bg-inset border border-border gap-0.5">
+    <div className="inline-flex p-1 rounded-xl bg-bg-inset border border-border gap-0.5">
       {options.map((o) => (
         <button
           key={o.value}
@@ -299,8 +300,10 @@ export function Segmented<T extends string | number>({
           title={o.title}
           disabled={disabled || o.disabled}
           onClick={() => onChange(o.value)}
-          className={`px-3 h-8 rounded-md text-xs font-medium transition-colors disabled:opacity-35 disabled:cursor-not-allowed ${
-            value === o.value ? "bg-white/10 text-fg" : "text-fg-dim hover:text-fg-muted"
+          className={`px-3.5 h-8 rounded-lg text-xs font-medium transition-all disabled:opacity-35 disabled:cursor-not-allowed ${
+            value === o.value
+              ? "bg-accent/15 text-accent shadow-[0_0_0_1px_#a5a8f033]"
+              : "text-fg-dim hover:text-fg-muted"
           }`}
         >
           {o.label}

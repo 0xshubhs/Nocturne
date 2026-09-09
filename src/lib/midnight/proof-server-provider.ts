@@ -1,4 +1,4 @@
-// defi1 — proving against a standalone proof server.
+// Nocturne — proving against a standalone proof server.
 //
 // The wallet is the proving path a user takes (`getProvingProvider` in
 // `tx-assembler.ts`), and it is the right one: the user's keys and proving

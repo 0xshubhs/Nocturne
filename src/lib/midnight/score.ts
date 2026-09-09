@@ -1,4 +1,4 @@
-// defi1 — app-side mirror of the credit score and tier table.
+// Nocturne — app-side mirror of the credit score and tier table.
 //
 // The authoritative copy is `contracts/src/score.ts`, which is parity-tested
 // against the compiled `scoreOf` / `maxLoanTermSeconds` circuits

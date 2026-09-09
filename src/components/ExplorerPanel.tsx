@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — "what the chain sees" against "what you know" (plan.md §6).
+// Nocturne — "what the chain sees" against "what you know" (plan.md §6).
 //
 // The demo's whole argument, in two columns. The left is the serialized ledger:
 // literally everything an observer, an indexer, or a competing lender can read.

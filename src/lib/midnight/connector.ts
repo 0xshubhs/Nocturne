@@ -1,4 +1,4 @@
-// defi1 — Midnight wallet connection via the DApp Connector API.
+// Nocturne — Midnight wallet connection via the DApp Connector API.
 //
 // Wallets inject one or more `InitialAPI` instances under `window.midnight`,
 // keyed by UUID. Never hardcode a key — enumerate. The connector API has no

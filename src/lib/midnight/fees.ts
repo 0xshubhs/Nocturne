@@ -1,4 +1,4 @@
-// defi1 — DUST fee state.
+// Nocturne — DUST fee state.
 //
 // DUST is the non-transferable resource that pays for every transaction. It
 // regenerates over time from staked NIGHT up to a cap. We surface enough for

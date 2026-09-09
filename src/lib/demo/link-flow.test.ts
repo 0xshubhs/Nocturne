@@ -1,4 +1,4 @@
-// defi1 — the cross-chain linking flow end to end (plan.md §4).
+// Nocturne — the cross-chain linking flow end to end (plan.md §4).
 //
 // Runs the built-in demo signer, so the signature is a real EIP-191 signature
 // over a real challenge, recovered with real secp256k1. The only thing these

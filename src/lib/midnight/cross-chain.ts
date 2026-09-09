@@ -1,4 +1,4 @@
-// defi1 — cross-chain history import (plan.md §4).
+// Nocturne — cross-chain history import (plan.md §4).
 //
 // The flow, end to end:
 //
@@ -101,7 +101,7 @@ export function externalChallengeMessage(
   issuedAt: number,
 ): string {
   return [
-    "defi1 cross-chain history import",
+    "nocturne cross-chain history import",
     "",
     `I control ${address} on ${chain}.`,
     "This signature links its public history to my private credit score.",
@@ -278,7 +278,7 @@ export function crossChainBreakdown(
  */
 export function historyCommitment(history: ExternalHistory, nonce: string): Uint8Array {
   const canonical = JSON.stringify([
-    "defi1:cross-chain:v1",
+    "nocturne:cross-chain:v1",
     history.chain,
     history.address.toLowerCase(),
     history.firstActivityUnix,

@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the proof lifecycle, rendered.
+// Nocturne — the proof lifecycle, rendered.
 //
 // Proving on Midnight is genuinely slow (seconds to minutes for a real
 // circuit). Hiding that behind a spinner would misrepresent what the chain is

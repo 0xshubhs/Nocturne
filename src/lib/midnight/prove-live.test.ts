@@ -1,4 +1,4 @@
-// defi1 — the proving step, for real.
+// Nocturne — the proving step, for real.
 //
 // Everything else in the suite stops short of a proof: the wallet is the only
 // prover a user has, there is no headless wallet for this stack, and the
@@ -8,7 +8,7 @@
 // This closes that gap by assembling a real transaction and proving it against
 // a running `midnight-proof-server`:
 //
-//   docker run -d --name defi1-proof-server -p 6300:6300 \
+//   docker run -d --name nocturne-proof-server -p 6300:6300 \
 //     midnightnetwork/proof-server:latest
 //
 // Skipped when the server is not up, so the default `npm test` stays fast and
@@ -22,7 +22,7 @@ import { proofServerProvingProvider, proofServerVersion } from "./proof-server-p
 import { HttpZKConfigProvider } from "./zk-config";
 import type { BorrowerPrivateState } from "./lending";
 
-const PROOF_SERVER = process.env.DEFI1_PROOF_SERVER ?? "http://127.0.0.1:6300";
+const PROOF_SERVER = process.env.NOCTURNE_PROOF_SERVER ?? "http://127.0.0.1:6300";
 const MANAGED = join(process.cwd(), "contracts/src/managed/lending");
 const COMPILED = existsSync(join(MANAGED, "contract/index.js"));
 const KEYED = existsSync(join(MANAGED, "keys/depositLiquidity.prover"));
@@ -73,7 +73,7 @@ beforeAll(async () => {
   if (!serverUp) {
     console.warn(
       `\n  [prove-live] no proof server at ${PROOF_SERVER} — skipping. Start one with:\n` +
-        "    docker run -d --name defi1-proof-server -p 6300:6300 midnightnetwork/proof-server:latest\n",
+        "    docker run -d --name nocturne-proof-server -p 6300:6300 midnightnetwork/proof-server:latest\n",
     );
   }
 });
@@ -140,7 +140,7 @@ suite("proving against a real proof server", () => {
     if (!serverUp) return;
 
     const { MidnightTxAssembler, serializeContractStateHex } = await import("./tx-assembler");
-    const { attestationLeaf, FIELD_TAG, pureCircuits, DEMO_PERSONAS } = await import("@defi1/contracts");
+    const { attestationLeaf, FIELD_TAG, pureCircuits, DEMO_PERSONAS } = await import("@nocturne/contracts");
 
     const ISSUER = new Uint8Array(32).fill(7);
     const ALICE = new Uint8Array(32).fill(11);

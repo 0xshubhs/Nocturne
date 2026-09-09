@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the borrower's attestation inbox (plan.md §6).
+// Nocturne — the borrower's attestation inbox (plan.md §6).
 //
 // The whole privacy argument in one component: the values are on screen because
 // this device holds them. What reached the chain is the hash on the right, and

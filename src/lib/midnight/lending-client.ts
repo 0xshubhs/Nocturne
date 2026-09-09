@@ -1,4 +1,4 @@
-// defi1 — high-level lending client.
+// Nocturne — high-level lending client.
 //
 // Ties together: the connected wallet, the encrypted borrower private state,
 // the compiled contract's circuit logic, and the prove→pay→submit pipeline.

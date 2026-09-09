@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — wallet detail, shown from the header button once connected.
+// Nocturne — wallet detail, shown from the header button once connected.
 //
 // Everything here belongs to the live path (plan.md §3): the unshielded
 // address, the DUST balance that pays for a proof, and whether the local proof

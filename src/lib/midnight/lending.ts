@@ -1,4 +1,4 @@
-// defi1 — app-side view of the lending contract: the private-state shape the
+// Nocturne — app-side view of the lending contract: the private-state shape the
 // borrower holds locally, plus a typed wrapper over the encrypted store.
 //
 // The private-state shape MUST match `contracts/src/witnesses.ts`
@@ -15,8 +15,8 @@ import { EncryptedPrivateStateStore, deriveStoreKey, type StorageBackend } from 
 import type { LinkedWallet } from "./cross-chain";
 import type { Attestation, AttestationField } from "./score";
 
-export const LENDING_PRIVATE_STATE_ID = "defi1.borrower" as const;
-export const LINKED_WALLETS_ID = "defi1.linked-wallets" as const;
+export const LENDING_PRIVATE_STATE_ID = "nocturne.borrower" as const;
+export const LINKED_WALLETS_ID = "nocturne.linked-wallets" as const;
 
 export type { Attestation, AttestationField };
 

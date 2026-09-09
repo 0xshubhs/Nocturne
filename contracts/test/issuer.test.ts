@@ -1,4 +1,4 @@
-// defi1 — the mock attestation issuer, end to end against the simulator:
+// Nocturne — the mock attestation issuer, end to end against the simulator:
 // issue a persona's attestation set, store it as borrower private state, borrow.
 
 import { describe, expect, it } from "vitest";

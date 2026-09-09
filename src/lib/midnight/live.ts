@@ -1,4 +1,4 @@
-// defi1 — the live path: a real wallet, a real contract, a real proof.
+// Nocturne — the live path: a real wallet, a real contract, a real proof.
 //
 // Everything else in `lib/midnight` is either demo-safe or type-only. This is
 // the one entry point that pulls in the ledger and onchain-runtime WASM, so it

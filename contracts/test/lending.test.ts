@@ -1,4 +1,4 @@
-// defi1 — core contract behaviour, run against the in-memory simulator
+// Nocturne — core contract behaviour, run against the in-memory simulator
 // (no proof server). Covers the milestone-1 checklist: score thresholds,
 // LTV boundary, double-borrow rejection, and the liquidation disclosure surface.
 
@@ -20,7 +20,7 @@ const ALICE_ATTS = { bank: att(200n), salary: att(150n), repay: att(90n) };
 // bob: 100*2 + 80*3 + 15*4 + 0 = 500  -> tier 0 only (>= 500, < 750)
 const BOB_ATTS = { bank: att(100n), salary: att(80n), repay: att(15n) };
 
-describe("defi1 lending core", () => {
+describe("nocturne lending core", () => {
   let sim: LendingSim;
 
   beforeEach(async () => {

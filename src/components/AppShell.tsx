@@ -1,12 +1,14 @@
 "use client";
 
-// defi1 — dapp chrome: nav, network state, persona switch, demo clock.
+// Nocturne — dapp chrome: nav, network state, persona switch, demo clock.
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useDemo } from "@/lib/demo/use-demo";
 import { useWallet } from "@/lib/midnight";
 import { PERSONAS, PERSONA_IDS } from "@/lib/demo/personas";
 import { DEFAULT_NETWORK } from "@/lib/midnight/config";
+import { BRAND } from "@/lib/brand";
 import { WalletPanel } from "./WalletPanel";
 import { Pill, formatDate, shortAddress } from "./ui";
 
@@ -18,17 +20,33 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "explorer", label: "Explorer" },
 ];
 
+/** A waxing crescent — the mark for a protocol named after night music. */
+function Moon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <defs>
+        <radialGradient id="noct-moon" cx="35%" cy="30%">
+          <stop offset="0%" stopColor="#c9cbff" />
+          <stop offset="100%" stopColor="#8f93e6" />
+        </radialGradient>
+      </defs>
+      <circle cx="12" cy="12" r="9" fill="url(#noct-moon)" opacity="0.95" />
+      <circle cx="16.5" cy="9.5" r="8" fill="var(--bg)" />
+    </svg>
+  );
+}
+
 function Logo() {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-private/15 border border-private/30">
-        <span className="h-2 w-2 rounded-full bg-private" />
-      </span>
+    <Link href="/" className="flex items-center gap-3 group">
+      <Moon />
       <div className="leading-none">
-        <div className="text-sm font-semibold tracking-tight">defi1</div>
-        <div className="text-[10px] text-fg-dim mt-0.5">ZK credit on Midnight</div>
+        <div className="font-display text-lg tracking-tight group-hover:text-accent transition-colors">
+          {BRAND.name}
+        </div>
+        <div className="text-[10px] text-fg-dim mt-1 tracking-wide">{BRAND.tagline}</div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -55,9 +73,9 @@ function WalletButton() {
               ? "No Midnight wallet extension detected — the demo runs without one"
               : availableWallets.map((w) => w.name).join(", ")
         }
-        className={`h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
+        className={`h-10 px-4 rounded-full border text-xs font-medium transition-colors ${
           status === "connected"
-            ? "border-private/30 bg-private/10 text-private font-mono"
+            ? "border-accent/30 bg-accent/10 text-accent font-mono"
             : "border-border-strong text-fg-muted hover:text-fg hover:border-fg-dim"
         }`}
       >
@@ -89,19 +107,21 @@ export function AppShell({
   const [showClock, setShowClock] = useState(false);
 
   return (
-    <div className="min-h-screen bg-bg bg-grid">
-      <header className="sticky top-0 z-20 border-b border-border bg-bg/85 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-5 h-14 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-bg bg-moonlight">
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-bg/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between gap-4">
           <Logo />
 
-          <nav className="hidden sm:flex items-center gap-0.5 p-0.5 rounded-lg bg-bg-inset border border-border">
+          <nav className="hidden sm:flex items-center gap-0.5 p-1 rounded-xl bg-bg-inset/70 border border-border/70">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => onTab(t.id)}
-                className={`px-3.5 h-8 rounded-md text-xs font-medium transition-colors ${
-                  tab === t.id ? "bg-white/10 text-fg" : "text-fg-dim hover:text-fg-muted"
+                className={`px-4 h-8 rounded-lg text-xs font-medium transition-all ${
+                  tab === t.id
+                    ? "bg-accent/15 text-accent shadow-[0_0_0_1px_#a5a8f033]"
+                    : "text-fg-dim hover:text-fg-muted"
                 }`}
               >
                 {t.label}
@@ -116,19 +136,21 @@ export function AppShell({
         </div>
 
         {/* Persona + demo clock: the strip that makes the demo drivable. */}
-        <div className="border-t border-border/60 bg-bg-raised/50">
-          <div className="mx-auto max-w-6xl px-5 py-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="border-t border-border/40 bg-bg-raised/40">
+          <div className="mx-auto max-w-6xl px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase tracking-wider text-fg-dim">Acting as</span>
-              <div className="flex gap-0.5 p-0.5 rounded-lg bg-bg-inset border border-border">
+              <div className="flex gap-0.5 p-1 rounded-xl bg-bg-inset/70 border border-border/70">
                 {PERSONA_IDS.map((id) => (
                   <button
                     key={id}
                     type="button"
                     disabled={busy}
                     onClick={() => setActive(id)}
-                    className={`px-3 h-7 rounded-md text-xs font-medium transition-colors disabled:opacity-40 ${
-                      persona.id === id ? "bg-private/15 text-private" : "text-fg-dim hover:text-fg-muted"
+                    className={`px-3.5 h-7 rounded-lg text-xs font-medium transition-all disabled:opacity-40 ${
+                      persona.id === id
+                        ? "bg-private/12 text-private shadow-[0_0_0_1px_#7fdcb433]"
+                        : "text-fg-dim hover:text-fg-muted"
                     }`}
                   >
                     {PERSONAS[id].name}
@@ -193,9 +215,9 @@ export function AppShell({
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-6 py-8 animate-rise">{children}</main>
 
-      <footer className="mx-auto max-w-6xl px-5 py-8 text-xs text-fg-dim leading-relaxed border-t border-border/60 mt-8">
+      <footer className="mx-auto max-w-6xl px-6 py-10 text-xs text-fg-dim leading-relaxed border-t border-border/40 mt-10">
         Demo mode: the ledger runs in your browser and the proof phases are paced rather than
         computed. The contract these rules mirror is compiled Compact —{" "}
         <code className="font-mono">npm --prefix contracts run demo</code> runs the same story

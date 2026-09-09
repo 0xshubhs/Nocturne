@@ -1,4 +1,4 @@
-// defi1 — cross-chain history import (plan.md §4).
+// Nocturne — cross-chain history import (plan.md §4).
 //
 // The signatures here are produced with real secp256k1 keys and verified
 // through the same EIP-191 path a MetaMask `personal_sign` takes, so a passing
@@ -83,13 +83,13 @@ describe("EVM address handling", () => {
 
 describe("signature recovery", () => {
   it("recovers the signer of a personal_sign signature", () => {
-    const message = "defi1 test message";
+    const message = "nocturne test message";
     const sig = alice.personalSign(message);
     expect(recoverSigner(message, sig).toLowerCase()).toBe(alice.address.toLowerCase());
   });
 
   it("recovers a different address for a different signer", () => {
-    const message = "defi1 test message";
+    const message = "nocturne test message";
     expect(recoverSigner(message, mallory.personalSign(message)).toLowerCase()).toBe(
       mallory.address.toLowerCase(),
     );
@@ -101,7 +101,7 @@ describe("signature recovery", () => {
   });
 
   it("accepts a raw 0/1 recovery id as well as 27/28", () => {
-    const message = "defi1 test message";
+    const message = "nocturne test message";
     const sig = alice.personalSign(message);
     const v = parseInt(sig.slice(-2), 16);
     const rawV = (v - 27).toString(16).padStart(2, "0");

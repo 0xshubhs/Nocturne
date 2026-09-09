@@ -1,4 +1,4 @@
-// defi1 — seed a pool with liquidity and mint the demo personas (plan.md §7).
+// Nocturne — seed a pool with liquidity and mint the demo personas (plan.md §7).
 //
 //   npm run seed                        # narrate, then print the bundle
 //   npm run seed -- --json              # bundle only (pipe it somewhere)
@@ -34,9 +34,9 @@ const log = (...a: unknown[]) => !jsonOnly && console.log(...a);
 
 const LIQUIDITY = BigInt(flag("liquidity") ?? "1000000");
 
-// Deterministic demo keys — override the issuer with DEFI1_ISSUER_SECRET=<hex>.
-const issuerSecret = process.env.DEFI1_ISSUER_SECRET
-  ? fromHex(process.env.DEFI1_ISSUER_SECRET)
+// Deterministic demo keys — override the issuer with NOCTURNE_ISSUER_SECRET=<hex>.
+const issuerSecret = process.env.NOCTURNE_ISSUER_SECRET
+  ? fromHex(process.env.NOCTURNE_ISSUER_SECRET)
   : new Uint8Array(32).fill(7);
 const subjectSecrets: Record<PersonaName, Uint8Array> = {
   alice: new Uint8Array(32).fill(11),

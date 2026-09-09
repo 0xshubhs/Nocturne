@@ -1,4 +1,4 @@
-// defi1 — TS reference for the credit score.
+// Nocturne — TS reference for the credit score.
 //
 // MUST stay in lockstep with the score arithmetic in `borrow` (lending.compact):
 //   score = bank*2 + salary*3 + repay*4 + crossChain

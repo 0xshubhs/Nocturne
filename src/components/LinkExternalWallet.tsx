@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — link an external wallet (plan.md §4, §6).
+// Nocturne — link an external wallet (plan.md §4, §6).
 //
 // The flow is the real one: a challenge bound to the address and a nonce, an
 // EIP-191 signature, secp256k1 recovery, a bounded score derived from the

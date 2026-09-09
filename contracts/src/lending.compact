@@ -1,4 +1,4 @@
-// defi1 — ZK under-collateralized lending pool
+// Nocturne — ZK under-collateralized lending pool
 //
 // Compact >= 0.23 (compact-runtime 0.16.x). Patterns cross-checked against
 // Midnight-Skills templates/locker-dapp, templates/private-party-dapp,
@@ -94,18 +94,18 @@ export pure circuit maxLoanTermSeconds(): Uint<64> {
 }
 
 export pure circuit deriveIssuerPk(sk: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:issuer:v1"), sk]);
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "nocturne:issuer:v1"), sk]);
 }
 
 // Pseudonymous borrower id used as the loan key + double-borrow guard.
 export pure circuit makeNullifier(sk: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:nullifier:v1"), sk]);
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "nocturne:nullifier:v1"), sk]);
 }
 
 // Distinct domain: binds an attestation to a subject without linking to the
 // nullifier.
 export pure circuit makeSubjectId(sk: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "defi1:subject:v1"), sk]);
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "nocturne:subject:v1"), sk]);
 }
 
 // Attestation leaf the issuer commits into `attestationRoot`.
@@ -232,10 +232,10 @@ export circuit borrow(
 
   // --- score, computed entirely over private data ---
   const subject = makeSubjectId(secret);
-  const bankV   = verifiedValue(pad(32, "defi1:att:bank:v1"),   subject, bankAttestation());
-  const salaryV = verifiedValue(pad(32, "defi1:att:salary:v1"), subject, salaryAttestation());
-  const repayV  = verifiedValue(pad(32, "defi1:att:repay:v1"),  subject, repayAttestation());
-  const crossV  = verifiedValue(pad(32, "defi1:att:crosschain:v1"), subject, crossChainAttestation());
+  const bankV   = verifiedValue(pad(32, "nocturne:att:bank:v1"),   subject, bankAttestation());
+  const salaryV = verifiedValue(pad(32, "nocturne:att:salary:v1"), subject, salaryAttestation());
+  const repayV  = verifiedValue(pad(32, "nocturne:att:repay:v1"),  subject, repayAttestation());
+  const crossV  = verifiedValue(pad(32, "nocturne:att:crosschain:v1"), subject, crossChainAttestation());
 
   const score = scoreOf(bankV, salaryV, repayV, crossV);
 

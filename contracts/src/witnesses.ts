@@ -1,4 +1,4 @@
-// defi1 — private state + witness implementations for lending.compact
+// Nocturne — private state + witness implementations for lending.compact
 //
 // These callbacks supply the private (witness) inputs at proving time. They run
 // locally in the caller's client and never leave the device. The attestation
@@ -36,10 +36,10 @@ const ZERO_ATT: Attestation = { value: 0n, expiry: 0n };
 
 // domain separators — must match lending.compact
 export const FIELD_TAG = {
-  bank: pad32("defi1:att:bank:v1"),
-  salary: pad32("defi1:att:salary:v1"),
-  repay: pad32("defi1:att:repay:v1"),
-  crossChain: pad32("defi1:att:crosschain:v1"),
+  bank: pad32("nocturne:att:bank:v1"),
+  salary: pad32("nocturne:att:salary:v1"),
+  repay: pad32("nocturne:att:repay:v1"),
+  crossChain: pad32("nocturne:att:crosschain:v1"),
 } as const;
 
 export function pad32(s: string): Uint8Array {

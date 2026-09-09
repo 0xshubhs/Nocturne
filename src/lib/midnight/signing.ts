@@ -1,4 +1,4 @@
-// defi1 — message signing via the DApp Connector API.
+// Nocturne — message signing via the DApp Connector API.
 //
 // Used for two things:
 //   1. proving ownership of an external wallet before its history is committed
@@ -34,12 +34,12 @@ export async function proveExternalWalletOwnership(
   externalAddress: string,
   nonce: string,
 ): Promise<SignedMessage> {
-  const message = `defi1: I control ${externalAddress} — nonce ${nonce}`;
+  const message = `nocturne: I control ${externalAddress} — nonce ${nonce}`;
   return signMessage(api, message);
 }
 
 export function ownershipChallenge(externalAddress: string): { message: string; nonce: string } {
   const nonce = crypto.getRandomValues(new Uint8Array(16));
   const nonceHex = Array.from(nonce, (b) => b.toString(16).padStart(2, "0")).join("");
-  return { message: `defi1: I control ${externalAddress} — nonce ${nonceHex}`, nonce: nonceHex };
+  return { message: `nocturne: I control ${externalAddress} — nonce ${nonceHex}`, nonce: nonceHex };
 }

@@ -1,4 +1,4 @@
-// defi1 — mint the demo attestation set for Alice (strong) and Bob (thin file).
+// Nocturne — mint the demo attestation set for Alice (strong) and Bob (thin file).
 //
 //   npm run issuer:mint            # run against a fresh in-memory simulator
 //   npm run issuer:mint -- --json  # emit only the JSON bundle
@@ -22,9 +22,9 @@ const args = process.argv.slice(2);
 const jsonOnly = args.includes("--json");
 const log = (...a: unknown[]) => !jsonOnly && console.log(...a);
 
-// Deterministic demo keys (override with DEFI1_ISSUER_SECRET=<hex>).
-const issuerSecret = process.env.DEFI1_ISSUER_SECRET
-  ? fromHex(process.env.DEFI1_ISSUER_SECRET)
+// Deterministic demo keys (override with NOCTURNE_ISSUER_SECRET=<hex>).
+const issuerSecret = process.env.NOCTURNE_ISSUER_SECRET
+  ? fromHex(process.env.NOCTURNE_ISSUER_SECRET)
   : new Uint8Array(32).fill(7);
 const subjectSecrets: Record<PersonaName, Uint8Array> = {
   alice: new Uint8Array(32).fill(11),

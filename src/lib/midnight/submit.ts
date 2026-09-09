@@ -1,4 +1,4 @@
-// defi1 — the "prove → pay fees → submit → confirm" pipeline.
+// Nocturne — the "prove → pay fees → submit → confirm" pipeline.
 //
 // Composes the DApp Connector API's proving, balancing and relay methods with
 // the `proof-server.ts` phase machine so every borrow / repay call renders the

@@ -1,4 +1,4 @@
-// defi1 — the browser demo ledger.
+// Nocturne — the browser demo ledger.
 //
 // The authority on contract behaviour is `contracts/test/lending.test.ts`,
 // which runs the compiled circuits. These cases pin the browser twin to the

@@ -1,4 +1,4 @@
-// defi1 — encrypted-at-rest private state store, keyed to the connected wallet.
+// Nocturne — encrypted-at-rest private state store, keyed to the connected wallet.
 //
 // The borrower's attestations, identity secret and cross-chain score never
 // leave the device. This store keeps them in `localStorage` (or any injected
@@ -39,7 +39,7 @@ export function defaultStorage(): StorageBackend {
   };
 }
 
-const DOMAIN = "defi1:private-state:v1";
+const DOMAIN = "nocturne:private-state:v1";
 
 /**
  * Derive a stable AES-GCM key for this wallet by asking it to sign a fixed

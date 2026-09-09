@@ -1,4 +1,4 @@
-// defi1 — signing the cross-chain ownership challenge.
+// Nocturne — signing the cross-chain ownership challenge.
 //
 // Two paths, both producing a signature that goes through the *same*
 // `verifyExternalOwnership` recovery in `lib/midnight/cross-chain.ts`:

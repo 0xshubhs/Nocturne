@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the borrow form (plan.md §6).
+// Nocturne — the borrow form (plan.md §6).
 //
 // Every constraint is checked here before the button enables, and then checked
 // again by the circuit. The client-side copy exists to explain *why* something

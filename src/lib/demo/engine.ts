@@ -1,4 +1,4 @@
-// defi1 — in-browser demo ledger.
+// Nocturne — in-browser demo ledger.
 //
 // Mirrors the public state transitions of `contracts/src/lending.compact` so
 // the whole borrower and lender flow is clickable with no node, no proof
@@ -40,12 +40,12 @@ function domainHash(domain: string, ...parts: string[]): string {
 
 /** Pseudonymous borrower id: the loan key and the double-borrow guard. */
 export function nullifierFor(secret: string): string {
-  return domainHash("defi1:nullifier:v1", secret);
+  return domainHash("nocturne:nullifier:v1", secret);
 }
 
 /** Binds an attestation to a subject without linking it to the nullifier. */
 export function subjectIdFor(secret: string): string {
-  return domainHash("defi1:subject:v1", secret);
+  return domainHash("nocturne:subject:v1", secret);
 }
 
 /** The leaf the issuer commits for one attestation. */
@@ -54,7 +54,7 @@ export function attestationLeaf(
   att: Attestation,
   subject: string,
 ): string {
-  return domainHash(`defi1:att:${field.toLowerCase()}:v1`, subject, String(att.value), String(att.expiry));
+  return domainHash(`nocturne:att:${field.toLowerCase()}:v1`, subject, String(att.value), String(att.expiry));
 }
 
 // ---------------------------------------------------------------------------

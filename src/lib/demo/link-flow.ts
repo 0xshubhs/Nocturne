@@ -1,4 +1,4 @@
-// defi1 — the cross-chain linking flow (plan.md §4), as a pure function.
+// Nocturne — the cross-chain linking flow (plan.md §4), as a pure function.
 //
 // Lives outside the React provider so the interesting part is testable without
 // a DOM: challenge -> signature -> secp256k1 recovery -> bounded score -> the

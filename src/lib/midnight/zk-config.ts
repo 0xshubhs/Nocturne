@@ -1,4 +1,4 @@
-// defi1 — where the compiled ZK artifacts come from in the browser.
+// Nocturne — where the compiled ZK artifacts come from in the browser.
 //
 // `npm run sync:zk` copies the compiler's output into `public/zk/lending/`;
 // this serves it over HTTP to two consumers that want it in different shapes:

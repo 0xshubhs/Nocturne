@@ -1,6 +1,6 @@
-// defi1 — the contracts package's public surface.
+// Nocturne — the contracts package's public surface.
 //
-// The app imports the compiled contract from here (`@defi1/contracts`) so that
+// The app imports the compiled contract from here (`@nocturne/contracts`) so that
 // transaction assembly runs the *same* generated circuit code the test suite
 // does, rather than a second copy that could drift.
 //

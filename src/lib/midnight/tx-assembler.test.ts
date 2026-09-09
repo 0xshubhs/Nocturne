@@ -1,4 +1,4 @@
-// defi1 — transaction assembly, against the real compiled contract.
+// Nocturne — transaction assembly, against the real compiled contract.
 //
 // No network and no proof server, but nothing about the assembly is faked: the
 // contract state comes from a real deploy assembly (so its operations carry the

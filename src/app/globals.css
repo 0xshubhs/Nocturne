@@ -1,44 +1,59 @@
 @import "tailwindcss";
 
-/* defi1 — dark-first, because the chain is called Midnight.
+/* Nocturne — a nocturne is music written for the night, so the palette is a
+ * night you would actually want to sit in: deep indigo rather than black,
+ * moonlight rather than neon, and nothing at full saturation.
  *
- * The palette carries the one idea the whole product is about:
- *   emerald  = private, yours, never leaves the device
- *   amber    = public, on-chain, anyone can read it
- * Nothing else gets a saturated colour, so those two always mean something. */
+ * Two hues are reserved and carry meaning, never decoration:
+ *   mint   = private, yours, never leaves the device
+ *   amber  = public, on-chain, anyone can read it
+ * Everything else is the lavender of the brand or a neutral. If a value on
+ * screen is mint or amber, that is telling you who can see it. */
 
 :root {
-  --bg: #08090c;
-  --bg-raised: #0e1015;
-  --bg-inset: #0a0b0f;
-  --border: #1e212b;
-  --border-strong: #2a2e3b;
-  --fg: #e8eaf0;
-  --fg-muted: #8b91a3;
-  --fg-dim: #5c6274;
+  /* Surfaces — indigo-tinted, each step ~4% lighter, no pure black anywhere. */
+  --bg: #0b0c16;
+  --bg-raised: #121427;
+  --bg-inset: #0e1020;
+  --bg-hover: #171a30;
 
-  --private: #34d399;
-  --private-dim: #34d39926;
-  --public: #fbbf24;
-  --public-dim: #fbbf2426;
-  --danger: #f87171;
-  --danger-dim: #f8717126;
+  /* Borders sit low-contrast on purpose; structure comes from surface, not line. */
+  --border: #22253f;
+  --border-strong: #30355a;
+
+  /* Text — warm off-white, so it reads softer than #fff on dark. */
+  --fg: #e8e9f3;
+  --fg-muted: #9ea3c0;
+  --fg-dim: #6b7093;
+
+  /* Brand: moonlight. Used for focus, links, the wordmark — never for meaning. */
+  --accent: #a5a8f0;
+  --accent-soft: #a5a8f01f;
+
+  /* The two that mean something. Desaturated from the usual web-safe versions
+   * so a screen full of them is calm rather than loud. */
+  --private: #7fdcb4;
+  --public: #e8bd7a;
+  --danger: #f08a95;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-raised: var(--bg-raised);
   --color-bg-inset: var(--bg-inset);
+  --color-bg-hover: var(--bg-hover);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-dim: var(--fg-dim);
+  --color-accent: var(--accent);
   --color-private: var(--private);
   --color-public: var(--public);
   --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 html {
@@ -48,36 +63,85 @@ html {
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: "Satoshi", ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* A faint grid, the way every chain explorer has one. Purely atmosphere. */
-.bg-grid {
+/* Display face for headings — the one serif in the system. It is what stops
+ * this reading as another dark admin panel. */
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Moonlight: a soft off-centre wash, replacing the hard grid. Two very wide,
+ * very low-opacity radials — visible as atmosphere, never as a shape. */
+.bg-moonlight {
   background-image:
-    linear-gradient(to right, #ffffff05 1px, transparent 1px),
-    linear-gradient(to bottom, #ffffff05 1px, transparent 1px);
-  background-size: 44px 44px;
+    radial-gradient(60rem 40rem at 15% -10%, #a5a8f014, transparent 60%),
+    radial-gradient(50rem 34rem at 90% 0%, #7fdcb40e, transparent 60%);
 }
 
-/* Numbers that change should not make the layout jump. */
+/* Numbers that change should not shift the layout under them. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
-@keyframes pulse-ring {
-  0% { opacity: 0.9; }
-  50% { opacity: 0.35; }
-  100% { opacity: 0.9; }
+/* A hairline that fades out at both ends — softer than a full-width border. */
+.rule-fade {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
 }
-.animate-pulse-ring {
-  animation: pulse-ring 1.6s ease-in-out infinite;
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.animate-breathe {
+  animation: breathe 2.4s ease-in-out infinite;
 }
 
 @keyframes sweep {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(320%); }
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(330%);
+  }
 }
 .animate-sweep {
-  animation: sweep 1.4s ease-in-out infinite;
+  animation: sweep 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Focus that matches the brand rather than the browser default. */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--fg);
 }

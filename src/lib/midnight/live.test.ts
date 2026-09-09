@@ -1,4 +1,4 @@
-// defi1 — the live path's pre-flight.
+// Nocturne — the live path's pre-flight.
 //
 // Only the readiness check is unit-testable without a wallet; `connectLending`
 // itself is covered by `tx-assembler.test.ts`, which assembles real

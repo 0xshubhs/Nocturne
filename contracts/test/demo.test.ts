@@ -1,4 +1,4 @@
-// defi1 — the demo narrative as a regression test (plan.md §7).
+// Nocturne — the demo narrative as a regression test (plan.md §7).
 //
 // `npm run demo` prints this story; these cases assert it stays true. If a
 // tier rule, weight or disclosure surface changes underneath the demo, this

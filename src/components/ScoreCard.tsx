@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the borrower's score and the tier it unlocks (plan.md §6).
+// Nocturne — the borrower's score and the tier it unlocks (plan.md §6).
 //
 // The number is on screen because it is *yours*. What a counterparty gets is
 // the band, and only as a by-product of which tier you borrowed at. The card

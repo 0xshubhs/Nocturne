@@ -1,4 +1,4 @@
-// defi1 — Midnight integration layer (plan.md §3).
+// Nocturne — Midnight integration layer (plan.md §3).
 //
 //   config          network + service endpoints, wallet-config merge
 //   score           credit score, tier table, LTV + term rules (circuit mirror)

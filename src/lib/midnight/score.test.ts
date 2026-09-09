@@ -1,4 +1,4 @@
-// defi1 — the app's mirror of the scoring rules.
+// Nocturne — the app's mirror of the scoring rules.
 //
 // The fixtures below are deliberately the same ones
 // `contracts/test/score.parity.test.ts` runs against the compiled circuit. That

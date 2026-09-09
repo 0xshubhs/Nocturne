@@ -1,6 +1,6 @@
 "use client";
 
-// defi1 — the active loan (plan.md §6).
+// Nocturne — the active loan (plan.md §6).
 //
 // Everything on this card is public: it is exactly the `LoanRecord` the ledger
 // holds, keyed by a nullifier. That is the point — the borrower can see that

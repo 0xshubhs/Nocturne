@@ -1,7 +1,7 @@
-// defi1 — transaction assembly (plan.md §3, the last seam).
+// Nocturne — transaction assembly (plan.md §3, the last seam).
 //
 // Turns a circuit call into an unproven ledger transaction, using the same
-// compiled contract the test suite runs (`@defi1/contracts`) so the two cannot
+// compiled contract the test suite runs (`@nocturne/contracts`) so the two cannot
 // drift.
 //
 // This module is the *only* one that touches the ledger and onchain-runtime
@@ -34,7 +34,7 @@ import {
   witnesses,
   type CircuitId,
   type DefiPrivateState,
-} from "@defi1/contracts";
+} from "@nocturne/contracts";
 import { sampleSigningKey } from "@midnight-ntwrk/compact-runtime";
 import { getNetworkId, setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import {
@@ -240,7 +240,7 @@ export class MidnightTxAssembler implements TxAssembler {
     // The state the circuit runs against, and the state whose operations carry
     // the deployed verifier keys the call's key location hashes.
     const initialContractState = deserializeCompactContractState(fromHex(onChain.data), {
-      caller: "defi1:MidnightTxAssembler.call",
+      caller: "nocturne:MidnightTxAssembler.call",
     });
 
     const options = {
@@ -278,7 +278,7 @@ export class MidnightTxAssembler implements TxAssembler {
     // the operations — and so the verifier keys a later call's key location
     // hashes — carry over from the state it ran against.
     const nextContractState = deserializeCompactContractState(fromHex(onChain.data), {
-      caller: "defi1:MidnightTxAssembler.call:next",
+      caller: "nocturne:MidnightTxAssembler.call:next",
     });
     nextContractState.data = new ChargedState(data.public.nextContractState);
 

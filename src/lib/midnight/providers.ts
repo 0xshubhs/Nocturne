@@ -1,4 +1,4 @@
-// defi1 — provider wiring that does NOT need the full midnight-js SDK.
+// Nocturne — provider wiring that does NOT need the full midnight-js SDK.
 //
 //  - `FetchKeyMaterialProvider` serves the compiled ZK assets to the wallet's
 //    `getProvingProvider()` (the connector API's own proving path).
