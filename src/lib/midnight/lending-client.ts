@@ -3,16 +3,15 @@
 // Ties together: the connected wallet, the encrypted borrower private state,
 // the compiled contract's circuit logic, and the prove→pay→submit pipeline.
 //
-// `TxAssembler` is the injection point for transaction assembly — the one part
-// that still needs `@midnight-ntwrk/midnight-js-contracts` (version-blocked on
-// our Compact 0.34 / runtime 0.19 toolchain) or hand-rolled `ledger-v8`. The
-// runtime already produces the `callProofDataTrace` it needs; see
-// `contracts/src/managed/lending`. Everything else here is wired and tested.
+// The `TxAssembler` is injected rather than constructed here so this module
+// stays free of the ledger WASM: `MidnightTxAssembler` (in `tx-assembler.ts`)
+// is the real one, and tests supply a fake. Build one with
+// `MidnightTxAssembler.create({ api, config })`.
 
 import type { ConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import type { ServiceConfig } from "./config";
 import type { ProofProgress } from "./proof-server";
-import { submitContractCall, type SubmitResult, type UnprovenCall } from "./submit";
+import { submitContractCall, type AssembledCall, type SubmitResult } from "./submit";
 import { queryContractState } from "./providers";
 import {
   LendingStateManager,
@@ -21,20 +20,37 @@ import {
   type BorrowerPrivateState,
 } from "./lending";
 
-export type CircuitName = "borrow" | "repay" | "depositLiquidity" | "withdrawLiquidity";
+/** The circuits a client calls. Mirrors `CIRCUIT_IDS` in the contracts package. */
+export type CircuitName =
+  | "borrow"
+  | "repay"
+  | "depositLiquidity"
+  | "withdrawLiquidity"
+  | "issueAttestation"
+  | "liquidate";
+
+/** What a deploy yields once assembled. */
+export type AssembledDeployment = AssembledCall & {
+  contractAddress: string;
+  signingKey: string;
+};
 
 /**
- * Builds an unproven contract-call transaction for one circuit invocation.
- * Implemented against midnight-js-contracts or ledger-v8 once available.
+ * Builds unproven contract transactions. Structural, so `lending-client` does
+ * not import the ledger types; `MidnightTxAssembler` satisfies it.
  */
 export interface TxAssembler {
-  deploy(initialPrivateState: BorrowerPrivateState): Promise<{ contractAddress: string; unproven: UnprovenCall }>;
   call(
     contractAddress: string,
-    circuit: CircuitName,
-    args: unknown[],
+    circuitId: CircuitName,
+    args: readonly unknown[],
     privateState: BorrowerPrivateState,
-  ): Promise<UnprovenCall>;
+  ): Promise<AssembledCall>;
+
+  deploy(
+    issuerSecret: Uint8Array,
+    privateState: BorrowerPrivateState,
+  ): Promise<AssembledDeployment>;
 }
 
 export type BorrowParams = {
@@ -82,12 +98,21 @@ export class LendingClient {
 
   // --- lifecycle ---------------------------------------------------
 
-  async deploy(): Promise<string> {
+  /**
+   * Deploy a fresh pool. `issuerSecret` becomes the attestation issuer's key —
+   * the deployer is the issuer. Returns the new contract address and the
+   * maintenance signing key, which the caller must keep if the deployment is to
+   * remain upgradable.
+   */
+  async deploy(
+    issuerSecret: Uint8Array,
+    onProgress: (p: ProofProgress) => void = () => {},
+  ): Promise<{ contractAddress: string; signingKey: string }> {
     const ps = (await this.state.load()) ?? (await this.state.update((p) => p));
-    const { contractAddress, unproven } = await this.assembler.deploy(ps);
-    await submitContractCall(this.api, this.config, async () => unproven, () => {});
-    this.contractAddress = contractAddress;
-    return contractAddress;
+    const assembled = await this.assembler.deploy(issuerSecret, ps);
+    await submitContractCall(this.api, this.config, async () => assembled, onProgress);
+    this.contractAddress = assembled.contractAddress;
+    return { contractAddress: assembled.contractAddress, signingKey: assembled.signingKey };
   }
 
   join(contractAddress: string): void {
@@ -98,7 +123,7 @@ export class LendingClient {
 
   private async run(
     circuit: CircuitName,
-    args: unknown[],
+    args: readonly unknown[],
     onProgress: (p: ProofProgress) => void,
   ): Promise<SubmitResult> {
     if (!this.contractAddress) throw new Error("no contract — deploy() or join() first");
@@ -125,6 +150,16 @@ export class LendingClient {
 
   withdrawLiquidity(amount: bigint, onProgress: (x: ProofProgress) => void = () => {}): Promise<SubmitResult> {
     return this.run("withdrawLiquidity", [amount], onProgress);
+  }
+
+  /** Issuer-only: publish an attestation leaf. */
+  issueAttestation(leaf: Uint8Array, onProgress: (x: ProofProgress) => void = () => {}): Promise<SubmitResult> {
+    return this.run("issueAttestation", [leaf], onProgress);
+  }
+
+  /** Anyone: close an overdue loan, revealing only its nullifier. */
+  liquidate(nullifier: Uint8Array, onProgress: (x: ProofProgress) => void = () => {}): Promise<SubmitResult> {
+    return this.run("liquidate", [nullifier], onProgress);
   }
 
   // --- reads ----------------------------------------------------

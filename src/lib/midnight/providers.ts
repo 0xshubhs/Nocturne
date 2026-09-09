@@ -10,17 +10,32 @@
 // network are available; this file is the SDK-free foundation it builds on.
 
 import type { ConnectedAPI, KeyMaterialProvider, ProvingProvider } from "@midnight-ntwrk/dapp-connector-api";
+import { parseContractKeyLocation } from "@midnight-ntwrk/midnight-js-types";
 import type { ServiceConfig } from "./config";
 
 /**
  * Resolves prover/verifier keys + zkir for a circuit by fetching from the
  * app's `public/zk/lending/` folder (populated by `npm run sync:zk`).
+ *
+ * Two shapes of identifier arrive here, and both have to work:
+ *
+ *   · a bare circuit id (`"borrow"`), from our own code;
+ *   · a *contract key location*, from the wallet's prover. Transaction
+ *     assembly stamps each call with a contract-qualified location that embeds
+ *     the deployed verifier key's hash, so provers resolve artifacts by content
+ *     rather than by a circuit name that is ambiguous across contracts. Left
+ *     unparsed it would be fetched verbatim and 404.
  */
 export class FetchKeyMaterialProvider implements KeyMaterialProvider {
   constructor(
     private readonly basePath: string,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
+
+  /** Reduce either identifier shape to the circuit name the files are named by. */
+  private circuitOf(circuitKeyLocation: string): string {
+    return parseContractKeyLocation(circuitKeyLocation)?.circuitId ?? circuitKeyLocation;
+  }
 
   private async bytes(url: string): Promise<Uint8Array> {
     const res = await this.fetchImpl(url);
@@ -29,18 +44,19 @@ export class FetchKeyMaterialProvider implements KeyMaterialProvider {
   }
 
   async getProverKey(circuitKeyLocation: string): Promise<Uint8Array> {
-    return this.bytes(`${this.basePath}/keys/${circuitKeyLocation}.prover`);
+    return this.bytes(`${this.basePath}/keys/${this.circuitOf(circuitKeyLocation)}.prover`);
   }
 
   async getVerifierKey(circuitKeyLocation: string): Promise<Uint8Array> {
-    return this.bytes(`${this.basePath}/keys/${circuitKeyLocation}.verifier`);
+    return this.bytes(`${this.basePath}/keys/${this.circuitOf(circuitKeyLocation)}.verifier`);
   }
 
   async getZKIR(circuitKeyLocation: string): Promise<Uint8Array> {
+    const circuit = this.circuitOf(circuitKeyLocation);
     try {
-      return await this.bytes(`${this.basePath}/zkir/${circuitKeyLocation}.bzkir`);
+      return await this.bytes(`${this.basePath}/zkir/${circuit}.bzkir`);
     } catch {
-      return this.bytes(`${this.basePath}/zkir/${circuitKeyLocation}.zkir`);
+      return this.bytes(`${this.basePath}/zkir/${circuit}.zkir`);
     }
   }
 }

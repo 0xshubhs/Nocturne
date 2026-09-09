@@ -118,13 +118,51 @@ that story so it cannot rot quietly.
 | `lending-client` | `LendingClient` — one method per circuit, composing private state + assembler + submit |
 | `use-wallet` | React `WalletProvider` / `useWallet()` |
 
-`submit.ts` takes a `TxAssembler` — the one step that still needs transaction
-assembly. `@midnight-ntwrk/midnight-js-contracts` 4.1.1 pins `compact-runtime`
-0.16 against our 0.19 toolchain. **5.0.0-beta.7 now depends on `compact-runtime`
-0.19.0-rc.0** and is the likely unblock, but it pulls a heavy, changed tree
-(`effect`, `ledger-v9`, `onchain-runtime-v4`) and there is no local node or
-indexer here to verify an assembler against, so it is left as an explicit seam
-rather than written blind.
+### Transaction assembly (`tx-assembler.ts`)
+
+`submit.ts` takes a `TxAssembler`; `MidnightTxAssembler` is the real one, built
+on `midnight-js-contracts` 5.0.0-beta.7 and `ledger-v9`. It assembles both
+deployments and circuit calls:
+
+1. read the deployed contract state from the indexer;
+2. run the circuit locally against it, producing the call trace;
+3. partition the transcript, build a `ContractCallPrototype`, and pack it into
+   an unproven `Transaction` — the library's job, because this has to be
+   byte-exact with what the chain re-derives;
+4. prove it **through the wallet** (`getProvingProvider`), not a standalone
+   proof server;
+5. balance, pay DUST, submit — the wallet again.
+
+Step 4 is why the library's own `submitCallTx` is not used: that path proves
+through a `ProofProvider` pointed at a proof server, whereas a connector-based
+DApp should let the wallet prove so the user's keys and proving preferences stay
+in the wallet.
+
+Two gaps had to be bridged along the way. `ledger-v9`'s `ProvingProvider`
+requires a `lookupKey` that the DApp Connector API v4 does not define — its
+provider is specified against an older ledger — so the assembler supplies it
+from our own compiler output. And the wallet's prover is handed a *contract key
+location*, not a circuit name, so `FetchKeyMaterialProvider` parses it; left
+unparsed it would 404 several minutes into a proof.
+
+Going on-chain:
+
+```ts
+const client = await connectLending({ api, address, config });
+const { contractAddress } = await client.deploy(issuerSecret, onProgress);
+await client.depositLiquidity(1_000_000n, onProgress);
+```
+
+`checkLiveReadiness(api, config)` pre-flights the two things that are ours to
+get wrong: that the ZK artifacts are being served, and that the wallet is on the
+network the app targets.
+
+**Not yet run against a live network.** Assembly is exercised against the real
+compiled contract in `tx-assembler.test.ts` — a real deployment, a real
+`depositLiquidity` call, real transcript partitioning — but nothing has been
+proven by a wallet, submitted, or confirmed on preprod. Proving is the one step
+a test cannot stand in for: the ledger's WASM traps rather than throwing when
+handed an invalid proof, so the tests stop deliberately short of it.
 
 ### Demo mode (`src/lib/demo/`)
 
@@ -144,14 +182,15 @@ is the contract suite; this is the part you can run on a laptop.
 |---|---|
 | §1 Core contract | **Done** — compiles with full ZK keys, 45 tests green |
 | §2 Attestation issuer | **Done** — `AttestationIssuer`, cross-chain oracle, persona-mint CLI |
-| §3 Wallet integration | **Done** — connector, encrypted state, signing, DUST fees, prove→pay→submit pipeline, `LendingClient`; one seam (`TxAssembler`) awaits a runtime-compatible SDK |
+| §3 Wallet integration | **Done** — connector, encrypted state, signing, DUST fees, prove→pay→submit pipeline, `LendingClient`, and real transaction assembly for deploys and calls |
 | §4 Cross-chain import | **Done** — real secp256k1 ownership proof, bounded derivation, committed history hash |
 | §5 Scoring engine | **Done** — TS reference + circuit parity, mirrored for the browser |
 | §6 UI | **Done** — borrower dashboard, borrow/repay, pool view, explorer panel |
 | §7 Demo | **Done** — seed + narrated CLI run, and the same story in the browser |
 
-**7 of 7 milestones complete.** 151 tests green (106 app + 45 contracts),
-`tsc` clean in both packages, `eslint` clean, `next build` green.
+**7 of 7 milestones complete, plus transaction assembly.** 168 tests green
+(123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
+`next build` green.
 
 ### Two fixes worth calling out
 
@@ -175,8 +214,10 @@ past, which is exactly `due ≤ now + 90 days`.
 
 ```bash
 npm install
+npm --prefix contracts run compact   # required: the app imports the bindings
+npm run sync:zk                      # serve the proving/verifier keys
 npm run dev        # http://localhost:3000
-npm test           # 106 unit tests
+npm test           # 123 unit tests
 npm run typecheck
 npm run lint
 npm run build
@@ -202,8 +243,9 @@ prover.
 
 ## Roadmap
 
-1. Implement `TxAssembler` against `midnight-js-contracts` 5.x and run the app
-   against a live network — the only thing between this and a real deployment.
+1. Deploy to preprod and drive the live path end to end — the assembler is
+   written and tested offline, but proving, balancing and submission have never
+   run against a real wallet and node.
 2. Enforce interest on-chain: `repay` currently requires `amount >= principal`,
    not principal + accrued interest.
 3. Issuer signatures per leaf, and more than one issuer.

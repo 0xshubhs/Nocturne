@@ -12,12 +12,15 @@
     "sync:zk": "mkdir -p public/zk/lending && cp -R contracts/src/managed/lending/keys contracts/src/managed/lending/zkir public/zk/lending/"
   },
   "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.19.0",
     "@midnight-ntwrk/dapp-connector-api": "^4.0.1",
+    "@midnight-ntwrk/midnight-js-contracts": "^5.0.0-beta.7",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "@defi1/contracts": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -29,5 +32,11 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^2.1.9"
-  }
+  },
+  "overrides": {
+    "@midnight-ntwrk/compact-runtime": "0.19.0"
+  },
+  "workspaces": [
+    "contracts"
+  ]
 }

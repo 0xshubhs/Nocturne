@@ -10,7 +10,7 @@
 // node, or preprod. `scripts/mint-personas.ts` drives it for the demo.
 
 import { pureCircuits } from "./managed/lending/contract/index.js";
-import { attestationLeaf, FIELD_TAG, type Attestation } from "./witnesses.js";
+import { attestationLeaf, FIELD_TAG, type Attestation } from "./witnesses";
 
 export type AttestationField = "bank" | "salary" | "repay" | "crossChain";
 

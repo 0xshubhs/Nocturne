@@ -1,8 +1,9 @@
 # defi1 — Pending
 
 Working checklist tracked alongside the code. `[x]` done, `[~]` partial, `[ ]` open.
-Milestones §1–§7 are complete. One seam is open: `TxAssembler`, which is the
-only thing between the app and a live network.
+Milestones §1–§7 are complete, and so is transaction assembly — the app can
+build, prove, balance and submit real contract transactions. What has *not*
+happened is a run against a live network; see "Known gaps" at the bottom.
 
 ## Milestone status (plan.md)
 
@@ -34,8 +35,9 @@ only thing between the app and a live network.
   against the real compiled circuits; `npm --prefix contracts run seed` seeds a
   pool and emits the persona bundle; the browser demo does the same interactively.
 
-Score: **7 of 7 milestones complete.** 151 tests green (106 app + 45 contracts),
-`tsc` clean in both packages, `eslint` clean, `next build` green.
+Score: **7 of 7 milestones complete, plus transaction assembly.** 168 tests
+green (123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
+`next build` green.
 
 ## Core contract
 - [x] `borrow` — score gate + LTV + nullifier + attestation-root check
@@ -65,7 +67,9 @@ Score: **7 of 7 milestones complete.** 151 tests green (106 app + 45 contracts),
 - [x] `AttestationIssuer` + demo-persona bands + `attestCrossChain` (capped at 300)
 - [x] CLI to mint personas — `npm run issuer:mint`
 - [x] `test/issuer.test.ts` — issue → borrow end to end, unsigned attestation rejected
-- [ ] Deploy script proper — folded into §3 `TxAssembler` (needs tx assembly)
+- [x] Deploy path — `MidnightTxAssembler.deploy()` assembles the deployment,
+  installs the verifier keys, and returns the contract address plus the
+  maintenance signing key. Driven from `connectLending().deploy()`.
 
 ## Scoring engine
 - [x] TS reference `score.ts` mirroring the circuit arithmetic
@@ -84,12 +88,44 @@ Score: **7 of 7 milestones complete.** 151 tests green (106 app + 45 contracts),
 - [x] SDK-free provider foundation (`FetchKeyMaterialProvider`, `queryContractState`)
 - [x] `npm run sync:zk` — copies keys + zkir into `public/zk/lending/` (24 files,
   25MB); verified served over HTTP at the paths `FetchKeyMaterialProvider` requests
-- [ ] **`TxAssembler` implementation** — the one remaining seam. Build the
-  unproven contract-call tx. `midnight-js-contracts` 4.1.1 pins `compact-runtime`
-  0.16 against our 0.19, but **5.0.0-beta.7 now depends on `compact-runtime`
-  0.19.0-rc.0** and is the likely unblock — it pulls a heavy tree
-  (`effect`, `ledger-v9`, `onchain-runtime-v4`) and a changed API, and there is
-  no local node/indexer to verify against, so it was not taken on blind.
+- [x] **`TxAssembler` implementation — DONE.** `src/lib/midnight/tx-assembler.ts`
+  builds real unproven ledger transactions for both `deploy` and every circuit
+  call, on `midnight-js-contracts` 5.0.0-beta.7 + `ledger-v9`. The version block
+  was real but is gone: 5.0.0-beta.7 depends on `compact-runtime` 0.19.0-rc.0,
+  whose dependency set is identical to our 0.19.0.
+  - The library does the parts that must be byte-exact with what the chain
+    re-derives — transcript partitioning, the `ContractCallPrototype`, and the
+    contract key location that embeds the deployed verifier key's hash.
+  - Proving is delegated to the **wallet** (`getProvingProvider`), not to a
+    standalone proof server, which is why `submitCallTx` from the library is not
+    used: that path proves through a `ProofProvider` pointed at a proof server.
+  - Tested against the real compiled contract with no network:
+    `tx-assembler.test.ts` assembles a deployment, feeds its state back as the
+    indexer would, and assembles a real `depositLiquidity` call.
+- [x] **Fixed: the old proving step was wrong.** `submit.ts` used to hand the
+  serialized transaction to `ProvingProvider.prove()` and treat the result as a
+  proven transaction. `prove()` takes a *proof preimage*; the ledger drives it,
+  once per contract call, from `Transaction.prove()`. Corrected, and the seam
+  narrowed so `submit.ts` never touches ledger types.
+- [x] **Fixed: two copies of the WASM runtime.** `contracts/` had its own
+  `node_modules`, so the app and the contract package each got their own
+  `onchain-runtime-v4` — and a `ContractMaintenanceAuthority` built by one was
+  not an `instanceof` the other's. Caught by the first assembler test. The repo
+  is now an npm workspace with a `compact-runtime` override, so there is exactly
+  one copy of each runtime.
+- [x] **`lookupKey` gap bridged.** `ledger-v9`'s `ProvingProvider` requires
+  `lookupKey`, which the DApp Connector API v4 does not provide — its provider
+  is specified against an older ledger. The key material is our own compiler
+  output, so the assembler fills it in rather than blocking on a connector
+  revision.
+- [x] Live entry point — `src/lib/midnight/live.ts`: `connectLending()` builds a
+  `LendingClient` on the real assembler, and `checkLiveReadiness()` pre-flights
+  the two things that are ours to get wrong (artifacts served, wallet on the
+  right network). The assembler is imported lazily, so demo mode fetches no WASM
+  — verified in a browser: zero `.wasm` requests on the demo path.
+- [ ] **Run it against a live network.** Everything above is verified offline.
+  Nothing has yet been deployed to preprod and driven end to end with a real
+  wallet, a real proof and real DUST. That is the remaining unknown.
 
 ## App / infra
 - [x] Next 16 app builds, `tsc --noEmit` clean, vitest wired
@@ -145,6 +181,15 @@ Score: **7 of 7 milestones complete.** 151 tests green (106 app + 45 contracts),
 - [ ] Testnet faucet + DUST availability for demo accounts
 
 ## Known gaps, stated plainly
+- **The live path has never touched a network.** Assembly is exercised against
+  the real compiled contract, and every step after it is the connector API's
+  own, but no transaction has been proven by a wallet, balanced, submitted or
+  confirmed. Proving in particular is unverified: the ledger's WASM traps rather
+  than throwing when handed an invalid proof, so a fake prover cannot stand in
+  for a real one, and the tests deliberately stop short of it.
+- Building the app now requires the contract to be compiled first
+  (`npm run compact`), because the assembler imports the generated bindings.
+  `npm run sync:zk` is still needed to serve the keys.
 - The browser demo runs its own in-memory ledger (`src/lib/demo/engine.ts`) and
   paces the proof phases rather than computing them. It mirrors the circuit's
   asserts in the same order with the same messages, and its rules are unit-tested
