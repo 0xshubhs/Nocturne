@@ -1,6 +1,7 @@
 # defi1 — Pending
 
-Working checklist. Not committed. Move items to done as they land.
+Working checklist tracked alongside the code. `[x]` done, `[~]` partial, `[ ]` open.
+Milestones §1, §2, §3, §5 are complete and pushed; §6 is a shell.
 
 ## Milestone status (plan.md)
 
