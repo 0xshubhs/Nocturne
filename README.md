@@ -177,11 +177,19 @@ That suite assembles a real deployment, walks the contract forward through four
 | circuit | prover key | proving time |
 |---|---|---|
 | `depositLiquidity` | 74KB | ~0.3s |
-| `borrow` | 19MB | **12.9s** → 5.4KB proven transaction |
+| `borrow` | 19MB | **3.0s** → 5.4KB proven transaction |
 
 `borrow` is the one that matters: four Merkle-path checks, the score computed
-over private data, and a single disclosed bit about it. Thirteen seconds is
+over private data, and a single disclosed bit about it. Three seconds is
 comfortably inside what a live demo can carry.
+
+One caveat before demoing. Proving time has three regimes: a container with no
+cached parameters spends ~50s downloading them before it answers `/health`; the
+first `borrow` on a started server takes ~11-13s while the 19MB key is loaded;
+every proof after that is ~3s. `proof-server:up` mounts a named volume at
+`/.cache/midnight/zk-params` so the download happens once per machine rather
+than once per `docker run`, but the warm-up is still worth doing before anyone
+is watching.
 
 Proof server `7.0.0-rc.1` works against `ledger-v9` — the version numbers look
 unrelated but it fetches `zswap/9/...` parameters, so the generations match.

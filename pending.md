@@ -129,10 +129,22 @@ green (123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
   extension. `npm run proof-server:up && npm run test:prove` assembles real
   transactions and proves them:
   - `depositLiquidity` — ~0.3s
-  - **`borrow` — 12.9s, 5.4KB proven transaction.** This is the number that
+  - **`borrow` — 3.0s, 5.4KB proven transaction.** This is the number that
     decides whether a live demo is viable, and it is fine. `borrow` verifies
     four Merkle paths and computes the score over private data; its prover key
     is 19MB against 74KB for `depositLiquidity`.
+  - Timing has three regimes, and only the last one is what a demo feels:
+    a **container with no cached parameters** spends ~50s downloading them
+    (`bls_midnight_2p13`, the zswap and dust ZKIR) before it will even answer
+    `/health`; the **first `borrow` on a started server** is ~11-13s while the
+    19MB key is loaded; **every proof after that is ~3s**. Measured: 53.2s
+    (fresh container) → 11.4s (restarted, params cached) → 3.1s → 3.0s.
+  - `proof-server:up` now mounts a named volume at
+    `/.cache/midnight/zk-params`, so the download happens once per machine
+    instead of once per `docker run` — the container is `--rm`, so without it
+    every session re-downloaded. Startup dropped 20s → 4s. The volume is shared
+    with the sibling project: same parameters.
+  - Warm it up before anyone is watching.
   - Proof server `7.0.0-rc.1` works with our `ledger-v9` — it fetches
     `zswap/9/...` parameters, so the generations line up despite the version
     numbers looking unrelated.

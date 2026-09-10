@@ -210,9 +210,10 @@ export function Landing() {
                 </p>
               </div>
               <div>
-                <div className="font-mono text-2xl text-private">12.9s</div>
+                <div className="font-mono text-2xl text-private">3.0s</div>
                 <p className="text-fg-dim mt-1 leading-relaxed">
-                  to prove a real borrow against a live proof server
+                  to prove a real borrow against a live proof server, once warm
+                  (~12s for the first one)
                 </p>
               </div>
               <div>

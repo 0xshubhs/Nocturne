@@ -71,9 +71,12 @@ beforeAll(async () => {
   serverVersion = await proofServerVersion(PROOF_SERVER);
   serverUp = serverVersion !== null;
   if (!serverUp) {
-    console.warn(
-      `\n  [prove-live] no proof server at ${PROOF_SERVER} — skipping. Start one with:\n` +
-        "    docker run -d --name nocturne-proof-server -p 6300:6300 midnightnetwork/proof-server:latest\n",
+    // A skip here would be silent, and the only reason to set PROVE_LIVE=1 is to
+    // actually prove — so a missing server is a failure, not a skip. `npm test`
+    // never reaches this file, so nothing else is affected.
+    throw new Error(
+      `no proof server at ${PROOF_SERVER} — start one with \`npm run proof-server:up\`, ` +
+        "or point PROOF_SERVER at a running one",
     );
   }
 });
@@ -83,12 +86,10 @@ const suite = ready ? describe : describe.skip;
 
 suite("proving against a real proof server", () => {
   it("reports a version", () => {
-    if (!serverUp) return;
     expect(serverVersion).toBeTruthy();
   });
 
   it("proves a real depositLiquidity call end to end", async () => {
-    if (!serverUp) return;
 
     const { MidnightTxAssembler, serializeContractStateHex } = await import("./tx-assembler");
 
@@ -137,7 +138,6 @@ suite("proving against a real proof server", () => {
   // for depositLiquidity — so this is the case that says whether a live demo is
   // actually viable, and how long a borrower waits.
   it("proves a real borrow, the circuit the demo depends on", async () => {
-    if (!serverUp) return;
 
     const { MidnightTxAssembler, serializeContractStateHex } = await import("./tx-assembler");
     const { attestationLeaf, FIELD_TAG, pureCircuits, DEMO_PERSONAS } = await import("@nocturne/contracts");
