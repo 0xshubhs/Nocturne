@@ -10,9 +10,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sync:zk": "mkdir -p public/zk/lending && cp -R contracts/src/managed/lending/keys contracts/src/managed/lending/zkir public/zk/lending/",
-    "proof-server:up": "docker run -d --rm --name nocturne-proof-server -p 6300:6300 -v midnight-zk-params:/.cache/midnight/zk-params midnightnetwork/proof-server:latest",
+    "proof-server:up": "docker run -d --rm --name nocturne-proof-server -p 6300:6300 -v midnight-zk-params:/.cache/midnight/zk-params midnightntwrk/proof-server:9.0.0-rc.7 -- 'midnight-proof-server --verbose'",
     "proof-server:down": "docker rm -f nocturne-proof-server",
-    "test:prove": "PROVE_LIVE=1 vitest run src/lib/midnight/prove-live.test.ts"
+    "test:prove": "PROVE_LIVE=1 vitest run src/lib/midnight/prove-live.test.ts",
+    "proof-server:version": "curl -sS http://127.0.0.1:6300/version"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.19.0",

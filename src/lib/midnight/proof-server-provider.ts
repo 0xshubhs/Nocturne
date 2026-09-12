@@ -73,6 +73,66 @@ export type ProofServerOptions = {
   timeoutMs?: number;
 };
 
+/** Node, and not a bundled browser build. */
+const IS_NODE =
+  typeof process !== "undefined" &&
+  process.versions?.node != null &&
+  typeof (globalThis as { window?: unknown }).window === "undefined";
+
+type RawResponse = { status: number; ok: boolean; body: Uint8Array };
+
+/**
+ * POST over `node:http` instead of `fetch`.
+ *
+ * Node's `fetch` is undici, whose `headersTimeout` defaults to **300 s**. A
+ * real `borrow` or `proveReputation` can exceed that, and when it does undici
+ * aborts with a bare `fetch failed` that looks like the server is unreachable
+ * — while the server is in fact still computing. Worse, the abandoned request
+ * leaves a worker pinned, so every later request queues behind it and the
+ * whole server appears to hang.
+ *
+ * `AbortController` alone does not help: undici's timer fires first. There is
+ * no way to raise it without an undici `Agent`, and undici is not a dependency
+ * here — so on Node we use the core HTTP client, which imposes no such limit,
+ * and let `timeoutMs` be the only deadline.
+ */
+async function nodePost(
+  url: string,
+  body: Uint8Array,
+  timeoutMs: number,
+): Promise<RawResponse> {
+  const { request } = await import(url.startsWith("https:") ? "node:https" : "node:http");
+  return new Promise<RawResponse>((resolve, reject) => {
+    const req = request(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/octet-stream",
+          "content-length": String(body.byteLength),
+        },
+      },
+      (res: import("node:http").IncomingMessage) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("error", reject);
+        res.on("end", () => {
+          const status = res.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            body: new Uint8Array(Buffer.concat(chunks)),
+          });
+        });
+      },
+    );
+    // Our deadline, not undici's. Generous by design: proving cannot resume.
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`no response within ${timeoutMs}ms`)));
+    req.on("error", reject);
+    req.end(Buffer.from(body));
+  });
+}
+
 /**
  * A `ProvingProvider` that delegates to a running proof server.
  *
@@ -88,6 +148,20 @@ export function proofServerProvingProvider(opts: ProofServerOptions): ProvingPro
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      // On Node, go around undici's 300s headersTimeout (see `nodePost`).
+      // A caller-supplied `fetchImpl` always wins — tests stub that seam.
+      if (IS_NODE && !opts.fetchImpl) {
+        const res = await nodePost(`${base}${path}`, body, timeoutMs);
+        if (!res.ok) {
+          const detail = Buffer.from(res.body).toString("utf8");
+          throw new ProofServerError(
+            `proof server ${path} failed (HTTP ${res.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+            res.status,
+          );
+        }
+        return res.body;
+      }
+
       const res = await fetchImpl(`${base}${path}`, {
         method: "POST",
         headers: { "content-type": "application/octet-stream" },
