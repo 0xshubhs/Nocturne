@@ -1,4 +1,7 @@
 /node_modules
-/src/managed/
+# Generated contract bindings and zkir ARE committed - the app imports them,
+# so a clean clone (e.g. a Vercel build) cannot compile without them.
+# The proving keys are NOT: they are large and already served from public/zk.
+/src/managed/*/keys/
 /src/managed-zk/
 *.tsbuildinfo

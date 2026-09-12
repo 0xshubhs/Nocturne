@@ -41,4 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 # generated ZK assets (npm run sync:zk)
-/public/zk/
+
+# Proving/verifier keys ARE committed: a deployed site must serve them to
+# the wallet's prover. Regenerate with `npm run sync:zk` after `compact`.

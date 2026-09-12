@@ -1,0 +1,158 @@
+{
+  "manifest-version": "1",
+  "compiler-version": "0.34.0",
+  "language-version": "0.26.0",
+  "runtime-version": "0.19.0",
+  "compiler": {
+    "type": "directory",
+    "contract-info.json": {
+      "type": "file",
+      "size": 16710,
+      "hash": "53baa8e1006042759712f70273759e75ba3162f3404b5fd0779e7aecca039843"
+    }
+  },
+  "contract": {
+    "type": "directory",
+    "index.d.ts": {
+      "type": "file",
+      "size": 10166,
+      "hash": "5f0d867ff26e23b9c3ca111bd6af55b5dbeb07b89260e4d671797d508fe6a6ad"
+    },
+    "index.js": {
+      "type": "file",
+      "size": 153695,
+      "hash": "65aa289cdf3b7ab5b152fc5dd3b91de5918d8f2fa7067a96a2559f8dd0004ff2"
+    },
+    "index.js.map": {
+      "type": "file",
+      "size": 6461,
+      "hash": "98328cd2946d63e1a6f6f0540a9828ba9a76f190509c33e18599c6fd24b7e521"
+    }
+  },
+  "zkir": {
+    "type": "directory",
+    "borrow.bzkir": {
+      "type": "file",
+      "size": 3019,
+      "hash": "1b39f2c57c69c6a1f26c5c9a701bb89faed0797986ef8f2be674058911c4b806"
+    },
+    "borrow.zkir": {
+      "type": "file",
+      "size": 42013,
+      "hash": "c01502bff97fbf8bd88dc512de570c9d846f91cb1bcff691388f41214650686f"
+    },
+    "depositLiquidity.bzkir": {
+      "type": "file",
+      "size": 123,
+      "hash": "919f40a333b8b55f626974b3005366e29c3167f5fbac535fb19ac991563a59b6"
+    },
+    "depositLiquidity.zkir": {
+      "type": "file",
+      "size": 1864,
+      "hash": "80fde9b804d7beee67f903efddaa05f27f2daaf4ca0ce094d549d045f7ceb53e"
+    },
+    "issueAttestation.bzkir": {
+      "type": "file",
+      "size": 328,
+      "hash": "5eb4ce7ee63dd4b458d627c89800f5bb2ab80a36854d958070854bc834ea1c34"
+    },
+    "issueAttestation.zkir": {
+      "type": "file",
+      "size": 5144,
+      "hash": "9f30569021bf07fdef84921a85a9c20f556bb99d4786ff0bf3d0ceddb8bacfa9"
+    },
+    "liquidate.bzkir": {
+      "type": "file",
+      "size": 464,
+      "hash": "38b96882adb76c4f5d2f767f09d658297fbae3576605140f41fc2b04b53bbf51"
+    },
+    "liquidate.zkir": {
+      "type": "file",
+      "size": 8251,
+      "hash": "82ed3d3d0b18be22f6db2fd11e0b6eec801de5056988e724b35f7fa468dbdb68"
+    },
+    "repay.bzkir": {
+      "type": "file",
+      "size": 406,
+      "hash": "44fea90901ed69fb3f553b9ee81e32fb155ca7860ff05f6486a692567000b841"
+    },
+    "repay.zkir": {
+      "type": "file",
+      "size": 6808,
+      "hash": "479e2f19f36040386b8319e1949e5da0f69d2f1522f6a963073e25dd3ba9fb83"
+    },
+    "withdrawLiquidity.bzkir": {
+      "type": "file",
+      "size": 177,
+      "hash": "ef09e9eea6a4bd0c2e031a991536c8967738e5867c5c7585813f9cd4693c1034"
+    },
+    "withdrawLiquidity.zkir": {
+      "type": "file",
+      "size": 2774,
+      "hash": "cdeeba4913134e00b0678b2d23e75176a1c4b2b1b1f06c865f54be014dd68d23"
+    }
+  },
+  "keys": {
+    "type": "directory",
+    "borrow.prover": {
+      "type": "file",
+      "size": 19559042,
+      "hash": "1867f7212e4d22cbf3aff640cc963fcd6f6a0f40bd6a39730fc1a6c3f4c2498c"
+    },
+    "borrow.verifier": {
+      "type": "file",
+      "size": 2119,
+      "hash": "831eb051afae69ca50184c62eebf5add3b97b44102863cf32525206921090a2b"
+    },
+    "depositLiquidity.prover": {
+      "type": "file",
+      "size": 74665,
+      "hash": "7d963d574f0dd189a1c3c7249b492ea2ad7427d4db3e5772ead8d715e085b83b"
+    },
+    "depositLiquidity.verifier": {
+      "type": "file",
+      "size": 1351,
+      "hash": "e9d7cc84acb98a0fdbb129be6827b0bef347f163f077d39108e93565292fe89f"
+    },
+    "issueAttestation.prover": {
+      "type": "file",
+      "size": 2823906,
+      "hash": "e4b2c2779be5e358c6636b1ede26b70f94491a6344ade232b3120f58f5d468b8"
+    },
+    "issueAttestation.verifier": {
+      "type": "file",
+      "size": 2119,
+      "hash": "42ea3a40e4bd378264dda678e9caf31a489f749cb054f9efc2f1712dbf6232bb"
+    },
+    "liquidate.prover": {
+      "type": "file",
+      "size": 147522,
+      "hash": "2f892bac84329fde5bcf58db0cdda204c327ea4d45a2e182f7bc2cf6cd15c917"
+    },
+    "liquidate.verifier": {
+      "type": "file",
+      "size": 1351,
+      "hash": "22886601932ec3a03ca34aa8ef556297eab540b7fe4f8d381956495371e317b1"
+    },
+    "repay.prover": {
+      "type": "file",
+      "size": 2821415,
+      "hash": "deeda62842b072955cb438bf1e6fc11de78cbf9b8204025c55dc77340dc5ece6"
+    },
+    "repay.verifier": {
+      "type": "file",
+      "size": 2119,
+      "hash": "4298aa3e26aaa26fb691db6c4fb01b01049881dbebb969ad444ba0e12becaa08"
+    },
+    "withdrawLiquidity.prover": {
+      "type": "file",
+      "size": 148693,
+      "hash": "6e92663299ccd449e4404cbb56a1d19bb9f440e91f8e2977de705497ac5ec3c1"
+    },
+    "withdrawLiquidity.verifier": {
+      "type": "file",
+      "size": 1351,
+      "hash": "6e8e0b88226bc43d4c0ad3e88d2151ea0dbe87db72e72abc05f6c88a4a7e9e1c"
+    }
+  }
+}
