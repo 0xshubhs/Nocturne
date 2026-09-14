@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Nocturne">
+  <title>Nocturne</title>
+  <defs>
+    <radialGradient id="noct-moon" cx="35%" cy="30%">
+      <stop offset="0%" stop-color="#c9cbff"/>
+      <stop offset="100%" stop-color="#8f93e6"/>
+    </radialGradient>
+    <!-- The crescent is cut with a mask rather than an over-painted circle in
+         the page background, so this file stands alone on any surface. -->
+    <mask id="noct-crescent">
+      <rect width="24" height="24" fill="black"/>
+      <circle cx="12" cy="12" r="9" fill="white"/>
+      <circle cx="16.5" cy="9.5" r="8" fill="black"/>
+    </mask>
+  </defs>
+  <circle cx="12" cy="12" r="9" fill="url(#noct-moon)" mask="url(#noct-crescent)"/>
+</svg>

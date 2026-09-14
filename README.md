@@ -1,4 +1,4 @@
-# defi1 — ZK Under-Collateralized Lending
+# Nocturne — ZK Under-Collateralized Lending
 
 Private credit scoring and under-collateralized borrowing on
 [Midnight](https://midnight.network). Built for the Midnight Buildathon.

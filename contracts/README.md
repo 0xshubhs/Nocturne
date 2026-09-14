@@ -1,4 +1,4 @@
-# defi1 — contracts
+# Nocturne — contracts
 
 Core Compact contract for the ZK under-collateralized lending pool.
 

@@ -1,4 +1,4 @@
-# defi1 — Pending
+# Nocturne — Pending
 
 Working checklist tracked alongside the code. `[x]` done, `[~]` partial, `[ ]` open.
 Milestones §1–§7 are complete, and so is transaction assembly — the app can
@@ -54,7 +54,7 @@ green (123 app + 45 contracts), `tsc` clean in both packages, `eslint` clean,
 - [x] **Cross-chain score is attested, not asserted.** It was an unconstrained
   witness — any borrower could hand the circuit `crossChainScore = 10^18` and
   clear any tier. It is now a fourth attestation field
-  (`defi1:att:crosschain:v1`) verified through the same Merkle path as the other
+  (`nocturne:att:crosschain:v1`) verified through the same Merkle path as the other
   three; every subject is onboarded with a zero-valued leaf so there is always a
   path to prove. Regression-tested both ways.
 - [x] Tier spread widened to 3x (tier 0 → 50% LTV, tier 1 → 150%) so the demo's
